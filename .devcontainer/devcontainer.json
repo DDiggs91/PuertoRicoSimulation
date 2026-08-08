@@ -48,16 +48,15 @@
             ]
         }
     },
-    // Persist Claude Code auth/config across container rebuilds
+    // Persist Claude Code auth/config, and the GitHub SSH key, across container rebuilds
     "mounts": [
-        "source=claude-code-config-${devcontainerId},target=/home/ubuntu/.claude,type=volume"
+        "source=claude-code-config-${devcontainerId},target=/home/ubuntu/.claude,type=volume",
+        "source=ssh-key-${devcontainerId},target=/home/ubuntu/.ssh,type=volume"
     ],
     "containerEnv": {
         "CLAUDE_CONFIG_DIR": "/home/ubuntu/.claude"
     },
-    // Docker mounts named volumes as root-owned; hand it to the ubuntu user
-    // so Claude Code can write its credentials there after login.
-    "postCreateCommand": "sudo chown -R ubuntu:ubuntu /home/ubuntu/.claude",
+    "postCreateCommand": "bash .devcontainer/post-create.sh",
     // Keeps the container running in the background
     "shutdownAction": "stopContainer",
     // Run as non-root so `claude --dangerously-skip-permissions` works.
