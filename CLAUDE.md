@@ -6,9 +6,12 @@ Guidance for Claude Code (and other AI-assisted development) in this repo.
 
 A software simulation of the board game *Puerto Rico*, with an eventual
 goal of AI opponents at varying skill levels. `puerto-rico-model` holds a
-complete base-game rules engine; the other five modules are still empty
-scaffolding, so don't assume any session, AI, lobby, web, or frontend code
-exists until you find it.
+complete base-game rules engine, `puerto-rico-session` orchestrates a
+running game on top of it (the Decision and Event/broadcast contracts), and
+`puerto-rico-lobby` seats actors into a table and creates the Game Session
+(the Lobby contract); the remaining three modules are still empty
+scaffolding, so don't assume any AI, web, or frontend code exists until you
+find it.
 
 Git history prior to commit `9afca52` reflects abandoned early work and
 should be disregarded — treat this repository's current state as the
@@ -42,8 +45,9 @@ copy or documentation — don't imply official affiliation or endorsement.
   dependencies to the root `pom.xml`'s `dependencyManagement`/
   `dependencies` unless they're genuinely module-specific; internal
   module-to-module dependencies belong in the child module's own POM.
-  `puerto-rico-model` adds only TestNG and a surefire provider of its own
-  (see below); everything else it inherits.
+  `puerto-rico-model`, `puerto-rico-session`, and `puerto-rico-lobby` each
+  add only TestNG and a surefire provider of their own (see below);
+  everything else they inherit.
   See [docs/architecture.md](docs/architecture.md) for what each module
   is responsible for and how they connect.
 - Spring Boot 4.1.0 — currently BOM/starters only (`spring-boot-starter-web`,
@@ -57,19 +61,24 @@ copy or documentation — don't imply official affiliation or endorsement.
   classpath at `provided` scope so the annotations are importable
 - google-java-format via `fmt-maven-plugin`, bound to `process-sources` —
   runs automatically on every build
-- TestNG for `puerto-rico-model`'s tests. JUnit 5 also reaches every module
-  via the inherited `spring-boot-starter-test`, and surefire runs exactly
-  one provider, so that module names the TestNG provider explicitly in its
-  own `pom.xml` rather than leaving it to auto-detection. Surefire's version
-  is pinned in the root `pluginManagement` — importing the Spring Boot BOM
-  brings `dependencyManagement` only, so it would otherwise fall back to
-  Maven's default.
+- TestNG for `puerto-rico-model`, `puerto-rico-session`, and
+  `puerto-rico-lobby`'s tests. JUnit 5 also reaches every module via the
+  inherited `spring-boot-starter-test`, and surefire runs exactly one
+  provider, so each of those modules names the TestNG provider explicitly
+  in its own `pom.xml` rather than leaving it to auto-detection. Surefire's
+  version is pinned in the root `pluginManagement` — importing the Spring
+  Boot BOM brings `dependencyManagement` only, so it would otherwise fall
+  back to Maven's default.
 
-Package convention: `com.PRS.model.*`, e.g. `com.PRS.model.boards`,
-`.buildings`, `.goods`, `.rolecards`, plus `.game`, `.actions`, `.engine`
-and `.scoring`. See
-[puerto-rico-model/README.md](puerto-rico-model/README.md) for what each
-package holds and the design decisions behind the engine.
+Package convention: `com.PRS.model.*` for the rules engine (e.g.
+`com.PRS.model.boards`, `.buildings`, `.goods`, `.rolecards`, `.game`,
+`.actions`, `.engine`, `.scoring`), `com.PRS.session.*` for the orchestrator
+(`com.PRS.session`, `.actors`, `.view`, `.events`), and `com.PRS.lobby` (flat,
+no subpackages) for the lobby. See
+[puerto-rico-model/README.md](puerto-rico-model/README.md),
+[puerto-rico-session/README.md](puerto-rico-session/README.md), and
+[puerto-rico-lobby/README.md](puerto-rico-lobby/README.md) for what each
+package holds and the design decisions behind them.
 
 ## Commands
 
@@ -112,8 +121,9 @@ Run `./mvnw verify` before considering any code task complete.
   records the model is built from, `@Builder(toBuilder = true)` is the one
   that earns its keep — it replaces long chains of `withX` copy methods.
 - Tests live under `src/test/java`, mirroring the `src/main/java` package
-  structure. `puerto-rico-model` uses TestNG (`@Test`, `@DataProvider`) with
-  AssertJ assertions; AssertJ and Mockito arrive transitively via
+  structure. `puerto-rico-model`, `puerto-rico-session`, and
+  `puerto-rico-lobby` use TestNG (`@Test`, `@DataProvider`) with AssertJ
+  assertions; AssertJ and Mockito arrive transitively via
   `spring-boot-starter-test`. Rules tables belong in a `@DataProvider` so
   each row is asserted individually.
 
