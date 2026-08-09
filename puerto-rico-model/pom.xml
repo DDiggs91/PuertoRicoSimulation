@@ -11,4 +11,31 @@
     <groupId>com.PRS</groupId>
     <artifactId>puerto-rico-model</artifactId>
 
+    <dependencies>
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- JUnit 5 also reaches this module via the inherited
+                 spring-boot-starter-test. Surefire runs exactly one provider, so
+                 name the TestNG one explicitly rather than leaving it to
+                 auto-detection. AssertJ still comes from the starter. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.apache.maven.surefire</groupId>
+                        <artifactId>surefire-testng</artifactId>
+                        <version>${mvn.surefire.plugin.version}</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+        </plugins>
+    </build>
 </project>

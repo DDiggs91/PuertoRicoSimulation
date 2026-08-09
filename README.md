@@ -29,6 +29,8 @@ game logic or model code has been written yet.
 - Spring Boot 4.1.0
 - Lombok
 - google-java-format (via `fmt-maven-plugin`, runs automatically on build)
+- Frontend (`puerto-rico-frontend` module): TypeScript-based browser
+  client; framework and build tooling not yet chosen
 
 ## Prerequisites
 
@@ -61,18 +63,29 @@ game logic or model code has been written yet.
 ├── .devcontainer/          # Dev container (Temurin 25 + Maven)
 ├── .github/workflows/      # CI
 ├── docs/
+│   ├── architecture.md     # Component/module architecture outline
 │   └── game-rules.md       # Puerto Rico rules reference for implementers
-├── puerto-rico-model/      # Maven module (com.PRS.model.*)
+├── puerto-rico-model/       # Maven module — Game Engine (Rules Core)
+├── puerto-rico-session/     # Maven module — Game Session (Orchestrator)
+├── puerto-rico-ai/          # Maven module — AI Engine Plugins
+├── puerto-rico-lobby/       # Maven module — Lobby / Matchmaking Manager
+├── puerto-rico-web/         # Maven module — Web/API Layer (Spring Boot app)
+├── frontend/                # Maven module — Web Frontend (browser client)
 ├── CLAUDE.md                # Guidance for AI-assisted development
 ├── LICENSE
 ├── pom.xml                  # Parent/reactor POM
 └── README.md
 ```
 
+Each module has its own README describing its intent; see
+[docs/architecture.md](docs/architecture.md) for how they fit together.
+
 ## Documentation
 
 - [CLAUDE.md](CLAUDE.md) — project conventions and commands for AI-assisted
   development
+- [docs/architecture.md](docs/architecture.md) — component/module
+  architecture outline
 - [docs/game-rules.md](docs/game-rules.md) — Puerto Rico rules reference
 
 ## License

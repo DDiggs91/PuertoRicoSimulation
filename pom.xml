@@ -10,12 +10,19 @@
     <packaging>pom</packaging>
     <modules>
         <module>puerto-rico-model</module>
+        <module>puerto-rico-session</module>
+        <module>puerto-rico-ai</module>
+        <module>puerto-rico-lobby</module>
+        <module>puerto-rico-web</module>
+        <module>frontend</module>
     </modules>
     <properties>
         <lombok.version>1.18.46</lombok.version>
         <slf4j.version>2.0.12</slf4j.version>
+        <testng.version>7.12.0</testng.version>
         <fmt.plugin.version>2.29</fmt.plugin.version>
         <mvn.compiler.plugin.version>3.13.0</mvn.compiler.plugin.version>
+        <mvn.surefire.plugin.version>3.5.6</mvn.surefire.plugin.version>
         <google.java.format.version>1.27.0</google.java.format.version>
         <spring-boot.version>4.1.0</spring-boot.version>
         <maven.compiler.source>25</maven.compiler.source>
@@ -34,11 +41,50 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
-                <scope>compile</scope>
+                <scope>provided</scope>
+            </dependency>
+            <!-- Not managed by the Spring Boot BOM, so pin it here. -->
+            <dependency>
+                <groupId>org.testng</groupId>
+                <artifactId>testng</artifactId>
+                <version>${testng.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.PRS</groupId>
+                <artifactId>puerto-rico-model</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.PRS</groupId>
+                <artifactId>puerto-rico-session</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.PRS</groupId>
+                <artifactId>puerto-rico-ai</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.PRS</groupId>
+                <artifactId>puerto-rico-lobby</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.PRS</groupId>
+                <artifactId>puerto-rico-frontend</artifactId>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
     <dependencies>
+        <!-- Compile-time only: the annotations must be importable, but Lombok
+             erases itself and is not needed at runtime. -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -50,6 +96,17 @@
         </dependency>
     </dependencies>
     <build>
+        <pluginManagement>
+            <plugins>
+                <!-- Importing spring-boot-dependencies brings dependencyManagement
+                     only, so surefire would otherwise fall back to Maven's default. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>${mvn.surefire.plugin.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
