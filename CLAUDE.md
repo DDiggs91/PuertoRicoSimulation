@@ -81,8 +81,10 @@ copy or documentation — don't imply official affiliation or endorsement.
   instead. See that module's README for why `PlayerAction`/`SessionEvent`
   use `allOf` + `discriminator` rather than `oneOf`.
 - `puerto-rico-frontend`: React + TypeScript + Vite, built via
-  `frontend-maven-plugin` (installs its own isolated Node under `target/`,
-  so no system Node is required for `./mvnw verify`). Vitest + React
+  `frontend-maven-plugin` (installs its own isolated Node under
+  `~/.cache/frontend-maven-plugin-node`, so no system Node is required for
+  `./mvnw verify`; the devcontainer image pre-warms this path at build
+  time — see Devcontainer section). Vitest + React
   Testing Library for unit/component tests; Playwright for functional tests
   against the real packaged app (not run by `./mvnw verify` — see its own
   CI job and README).
@@ -188,7 +190,13 @@ verify` does **not** run Playwright — see CI & dependency updates below.
   pulling in a second, conflicting JDK; Node so `puerto-rico-frontend`'s
   day-to-day `npm run dev`/`test:unit` work without going through Maven.
   `./mvnw verify` itself doesn't depend on this system Node —
-  `frontend-maven-plugin` installs its own isolated copy under `target/`.
+  `frontend-maven-plugin` installs its own isolated copy under
+  `~/.cache/frontend-maven-plugin-node`. The Dockerfile pre-warms that
+  exact path at image-build time (running the plugin's
+  `install-node-and-npm` goal as the `ubuntu` user against the two
+  `pom.xml` files it needs — see the build context note in
+  `devcontainer.json` and `../.dockerignore`), so a fresh container
+  already has it before the first real `./mvnw verify` runs.
 - Runs as the non-root `ubuntu` user with passwordless sudo.
 - `~/.claude` and `~/.ssh` are persisted across rebuilds via named Docker
   volumes.

@@ -13,17 +13,20 @@
 
     <build>
         <plugins>
-            <!-- Installs its own isolated Node/npm under target/ rather than requiring a system
-                 install, so `./mvnw verify` is self-sufficient. Playwright is deliberately not
-                 run here — it needs browser binaries and a booted app; see npm run test:e2e and
-                 the e2e CI job instead. -->
+            <!-- Installs its own isolated Node/npm rather than requiring a system install, so
+                 `./mvnw verify` is self-sufficient. installDirectory lives outside target/ (in
+                 ~/.cache) so it survives `mvn clean` instead of being re-downloaded every time;
+                 the devcontainer image pre-warms this exact path at build time (see
+                 .devcontainer/Dockerfile) so a fresh container already has it before the first
+                 real build runs. Playwright is deliberately not run here — it needs browser
+                 binaries and a booted app; see npm run test:e2e and the e2e CI job instead. -->
             <plugin>
                 <groupId>com.github.eirslett</groupId>
                 <artifactId>frontend-maven-plugin</artifactId>
                 <version>${frontend.maven.plugin.version}</version>
                 <configuration>
                     <nodeVersion>${node.version}</nodeVersion>
-                    <installDirectory>${project.build.directory}</installDirectory>
+                    <installDirectory>${user.home}/.cache/frontend-maven-plugin-node</installDirectory>
                 </configuration>
                 <executions>
                     <execution>

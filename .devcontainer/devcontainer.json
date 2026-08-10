@@ -1,7 +1,11 @@
 {
     "name": "Java 25 Development",
     "build": {
-        "dockerfile": "Dockerfile"
+        "dockerfile": "Dockerfile",
+        // Widens the build context from the default (.devcontainer/) to the repo root, so the
+        // Dockerfile can COPY the two pom.xml files it needs to pre-warm frontend-maven-plugin's
+        // Node install. See ../.dockerignore for what's excluded to keep this context small.
+        "context": ".."
     },
     // The eclipse-temurin noble base image already ships an "ubuntu" user
     // with UID/GID 1000, so we reuse it instead of creating a new one.
