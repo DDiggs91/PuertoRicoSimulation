@@ -22,7 +22,43 @@
         </dependency>
         <dependency>
             <groupId>com.PRS</groupId>
+            <artifactId>puerto-rico-contract</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.PRS</groupId>
             <artifactId>puerto-rico-frontend</artifactId>
         </dependency>
+        <!-- The generated controller interfaces use @Valid @RequestBody throughout; without a
+             provider on the classpath, bean validation silently no-ops instead of rejecting
+             malformed requests. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+        <!-- Spring Boot 4 split MockMvc test support out of spring-boot-starter-test into its
+             own per-web-technology starter; only this module does MVC testing. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Repackages the jar into an executable Spring Boot artifact: what
+                 `spring-boot:run` and Playwright's `java -jar` both need. -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

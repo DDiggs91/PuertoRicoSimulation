@@ -32,3 +32,11 @@ Thumbs.db
 
 # Claude Code local overrides (.claude/settings.json is committed)
 .claude/settings.local.json
+
+# puerto-rico-frontend: npm, generated, and Playwright output
+puerto-rico-frontend/node_modules/
+puerto-rico-frontend/dist/
+puerto-rico-frontend/src/api/schema.d.ts
+puerto-rico-frontend/*.tsbuildinfo
+puerto-rico-frontend/playwright-report/
+puerto-rico-frontend/test-results/

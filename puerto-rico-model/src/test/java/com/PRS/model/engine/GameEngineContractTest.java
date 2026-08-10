@@ -34,7 +34,7 @@ public class GameEngineContractTest {
       assertThat(legal)
           .as("a live game always offers a move, phase %s", state.phase())
           .isNotEmpty();
-      state = TestGames.apply(state, legal.get(random.nextInt(legal.size())));
+      state = TestGames.apply(state, RandomPlay.choose(legal, random));
     }
     return state;
   }
@@ -92,7 +92,7 @@ public class GameEngineContractTest {
             .as("offered action %s in %s", action, state.phase())
             .isInstanceOf(ActionResult.Accepted.class);
       }
-      state = TestGames.apply(state, legal.get(random.nextInt(legal.size())));
+      state = TestGames.apply(state, RandomPlay.choose(legal, random));
     }
   }
 

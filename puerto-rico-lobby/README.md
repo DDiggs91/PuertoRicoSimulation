@@ -25,11 +25,19 @@ Exposes the **Lobby contract** to `puerto-rico-web`, implemented by the
 GameId createGame();
 JoinOutcome join(GameId id, Actor actor, ActorKind kind);
 StartOutcome start(GameId id, long seed);
+StartOutcome start(GameId id, long seed, List<SessionListener> listeners);
 List<GameTableSummary> listGames();
 Optional<GameTableSummary> find(GameId id);
 Optional<GameSession> sessionFor(GameId id);   // present once started
 void close();                                  // AutoCloseable
 ```
+
+The listener-taking overload exists because it's the *only* point at which
+a listener can be attached before a game starts: an all-AI game can finish
+before the two-argument `start` even returns, so anything registered
+afterward may see nothing. `puerto-rico-web`'s `GameEventStream` uses it to
+attach its SSE fan-out listener before `GameSession.start()` fires its
+first event.
 
 Consumes `puerto-rico-session`'s `GameSession`/`SessionRunner`/`Actor`
 surface directly to create and drive a game once a table is ready.

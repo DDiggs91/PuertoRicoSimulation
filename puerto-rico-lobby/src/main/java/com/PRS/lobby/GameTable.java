@@ -6,6 +6,7 @@ import com.PRS.session.SessionRunner;
 import com.PRS.session.actors.Actor;
 import com.PRS.session.actors.ActorKind;
 import com.PRS.session.actors.SeatedActor;
+import com.PRS.session.events.SessionListener;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,7 +45,7 @@ final class GameTable {
     return new JoinOutcome.Seated(id, seatIndex);
   }
 
-  synchronized StartOutcome start(long seed) {
+  synchronized StartOutcome start(long seed, List<SessionListener> listeners) {
     Snapshot current = snapshot;
     if (current.status() != GameTableStatus.OPEN) {
       return new StartOutcome.Rejected(LobbyRejectionReason.ALREADY_STARTED);
@@ -54,6 +55,9 @@ final class GameTable {
     }
 
     session = GameSession.create(seed, current.seats());
+    for (SessionListener listener : listeners) {
+      session.addListener(listener);
+    }
     session.start();
     runner = SessionRunner.drive(session, current.seats());
     snapshot = new Snapshot(current.seats(), GameTableStatus.STARTED);

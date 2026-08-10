@@ -7,7 +7,9 @@ import com.PRS.session.GameSession;
 import com.PRS.session.SessionStatus;
 import com.PRS.session.actors.ActorKind;
 import com.PRS.session.actors.SeatedActor;
+import com.PRS.session.events.SessionEvent;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import org.testng.annotations.Test;
@@ -69,6 +71,22 @@ public class LobbySessionLifecycleTest {
     lobby.close();
 
     assertThat(session.status()).isEqualTo(SessionStatus.AWAITING_DECISION);
+  }
+
+  @Test
+  public void aListenerPassedToStartReceivesGameStartedFirst() throws Exception {
+    try (Lobby lobby = new Lobby()) {
+      GameId id = lobby.createGame();
+      lobby.join(id, StubActors.named("Ana"), ActorKind.AI);
+      lobby.join(id, StubActors.named("Bo"), ActorKind.AI);
+      lobby.join(id, StubActors.named("Coco"), ActorKind.AI);
+
+      List<SessionEvent> events = new CopyOnWriteArrayList<>();
+      lobby.start(id, 42L, List.of(events::add));
+
+      waitUntil(() -> !events.isEmpty(), 5);
+      assertThat(events.getFirst()).isInstanceOf(SessionEvent.GameStarted.class);
+    }
   }
 
   private static void waitUntil(BooleanSupplier condition, int timeoutSeconds)

@@ -3,6 +3,7 @@ package com.PRS.lobby;
 import com.PRS.session.GameSession;
 import com.PRS.session.actors.Actor;
 import com.PRS.session.actors.ActorKind;
+import com.PRS.session.events.SessionListener;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,11 +37,20 @@ public final class Lobby implements AutoCloseable {
   }
 
   public StartOutcome start(GameId id, long seed) {
+    return start(id, seed, List.of());
+  }
+
+  /**
+   * Like {@link #start(GameId, long)}, but attaches {@code listeners} to the {@code GameSession}
+   * before it starts — the only window in which that's possible. An all-AI game can run to
+   * completion before this call even returns, so a listener attached afterwards may see nothing.
+   */
+  public StartOutcome start(GameId id, long seed, List<SessionListener> listeners) {
     GameTable table = tables.get(id);
     if (table == null) {
       return new StartOutcome.Rejected(LobbyRejectionReason.GAME_NOT_FOUND);
     }
-    return table.start(seed);
+    return table.start(seed, listeners);
   }
 
   public List<GameTableSummary> listGames() {

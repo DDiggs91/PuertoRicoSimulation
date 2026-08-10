@@ -13,8 +13,9 @@
         <module>puerto-rico-session</module>
         <module>puerto-rico-ai</module>
         <module>puerto-rico-lobby</module>
+        <module>puerto-rico-contract</module>
         <module>puerto-rico-web</module>
-        <module>frontend</module>
+        <module>puerto-rico-frontend</module>
     </modules>
     <properties>
         <lombok.version>1.18.46</lombok.version>
@@ -25,6 +26,10 @@
         <mvn.surefire.plugin.version>3.5.6</mvn.surefire.plugin.version>
         <google.java.format.version>1.27.0</google.java.format.version>
         <spring-boot.version>4.1.0</spring-boot.version>
+        <openapi.generator.plugin.version>7.24.0</openapi.generator.plugin.version>
+        <jackson.databind.nullable.version>0.2.11</jackson.databind.nullable.version>
+        <frontend.maven.plugin.version>2.0.2</frontend.maven.plugin.version>
+        <node.version>v22.22.0</node.version>
         <maven.compiler.source>25</maven.compiler.source>
         <maven.compiler.target>25</maven.compiler.target>
     </properties>
@@ -50,6 +55,14 @@
                 <version>${testng.version}</version>
                 <scope>test</scope>
             </dependency>
+            <!-- Supplies org.openapitools.jackson.nullable.JsonNullable, which the openapi
+                 generator's "spring" generator emits for every nullable field. Not managed by
+                 the Spring Boot BOM. -->
+            <dependency>
+                <groupId>org.openapitools</groupId>
+                <artifactId>jackson-databind-nullable</artifactId>
+                <version>${jackson.databind.nullable.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.PRS</groupId>
                 <artifactId>puerto-rico-model</artifactId>
@@ -68,6 +81,11 @@
             <dependency>
                 <groupId>com.PRS</groupId>
                 <artifactId>puerto-rico-lobby</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.PRS</groupId>
+                <artifactId>puerto-rico-contract</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -115,6 +133,14 @@
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
+                    <!-- Keeps parameter names in the compiled bytecode. Spring MVC can resolve an
+                         unnamed @PathVariable/@RequestParam from this via reflection instead of
+                         requiring an explicit ("name") on every one; without it, only
+                         explicitly-named annotations work, which is easy to forget on
+                         hand-written controller methods (the generated ones in
+                         puerto-rico-contract are never affected — they always emit the explicit
+                         name). -->
+                    <parameters>true</parameters>
                     <annotationProcessorPaths>
                         <path>
                             <groupId>org.projectlombok</groupId>

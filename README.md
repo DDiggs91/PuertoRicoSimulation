@@ -19,18 +19,27 @@ of AI opponents at varying skill levels.
 
 ## Status
 
-Early scaffolding. The devcontainer and build tooling are set up, but no
-game logic or model code has been written yet.
+Playable end to end: create a table in a browser, seat three AI opponents,
+start the game, and watch it play out live to final standings, or open a
+second tab mid-game as a spectator. All seven modules are built — rules
+engine, orchestrator, lobby, AI, the OpenAPI wire contract, the Spring Boot
+backend, and the React frontend. The one piece deliberately not built yet
+is the click-to-move UI for a *human* player — everything server-side it
+needs already exists and is tested; see
+[puerto-rico-frontend/README.md](puerto-rico-frontend/README.md)'s Status
+section.
 
 ## Tech stack
 
-- Java 25 (Eclipse Temurin)
+- Java 25 (Eclipse Temurin), Spring Boot 4.1.0 (Jackson 3)
 - Maven 3.9.16 (multi-module, via the included Maven Wrapper)
-- Spring Boot 4.1.0
+- React 19 + TypeScript + Vite, generated from an OpenAPI spec shared with
+  the Java side (`puerto-rico-contract`) — see that module's README
 - Lombok
 - google-java-format (via `fmt-maven-plugin`, runs automatically on build)
-- Frontend (`puerto-rico-frontend` module): TypeScript-based browser
-  client; framework and build tooling not yet chosen
+- TestNG (engine/domain modules) or JUnit 5 (`puerto-rico-web`, Spring's
+  own idiomatic tooling); Vitest + React Testing Library + Playwright for
+  the frontend
 
 ## Prerequisites
 
@@ -50,27 +59,33 @@ game logic or model code has been written yet.
    do that once so `git push`/`git pull` work over SSH.
 3. Build and test:
    ```bash
-   ./mvnw clean install
-   ./mvnw -pl puerto-rico-model test
+   ./mvnw clean install    # full reactor, all seven modules, incl. frontend Vitest
    ```
    Code formatting runs automatically as part of the build — no manual
    formatting step needed.
+4. Run it:
+   ```bash
+   ./mvnw -pl puerto-rico-web spring-boot:run
+   ```
+   then open [http://localhost:8080](http://localhost:8080) — create a
+   game, seat a few random AIs, and start it.
 
 ## Project structure
 
 ```
 .
-├── .devcontainer/          # Dev container (Temurin 25 + Maven)
-├── .github/workflows/      # CI
+├── .devcontainer/           # Dev container (Temurin 25 + Maven + Node)
+├── .github/workflows/       # CI
 ├── docs/
-│   ├── architecture.md     # Component/module architecture outline
-│   └── game-rules.md       # Puerto Rico rules reference for implementers
+│   ├── architecture.md      # Component/module architecture outline
+│   └── game-rules.md        # Puerto Rico rules reference for implementers
 ├── puerto-rico-model/       # Maven module — Game Engine (Rules Core)
 ├── puerto-rico-session/     # Maven module — Game Session (Orchestrator)
 ├── puerto-rico-ai/          # Maven module — AI Engine Plugins
 ├── puerto-rico-lobby/       # Maven module — Lobby / Matchmaking Manager
+├── puerto-rico-contract/    # Maven module — Wire Contract (OpenAPI)
 ├── puerto-rico-web/         # Maven module — Web/API Layer (Spring Boot app)
-├── frontend/                # Maven module — Web Frontend (browser client)
+├── puerto-rico-frontend/    # Maven module — Web Frontend (React browser client)
 ├── CLAUDE.md                # Guidance for AI-assisted development
 ├── LICENSE
 ├── pom.xml                  # Parent/reactor POM

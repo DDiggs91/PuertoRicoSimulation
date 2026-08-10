@@ -24,5 +24,19 @@ RUN curl -fsSL -o /tmp/maven.tar.gz \
 ENV MAVEN_HOME=/opt/maven
 ENV PATH="${MAVEN_HOME}/bin:${PATH}"
 
+# Node for puerto-rico-frontend's local dev loop (npm run dev/test:unit) and Playwright.
+# ./mvnw verify itself doesn't need this — frontend-maven-plugin installs its own isolated
+# Node under target/ — but a system install makes the day-to-day npm workflow usable directly.
+ARG NODE_VERSION=22.22.0
+RUN cd /tmp \
+    && curl -fsSL -O "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+    && curl -fsSL -O "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" \
+    && grep " node-v${NODE_VERSION}-linux-x64.tar.xz\$" SHASUMS256.txt | sha256sum -c - \
+    && tar -xJf "node-v${NODE_VERSION}-linux-x64.tar.xz" -C /opt \
+    && ln -s "/opt/node-v${NODE_VERSION}-linux-x64" /opt/node \
+    && rm "node-v${NODE_VERSION}-linux-x64.tar.xz" SHASUMS256.txt
+
+ENV PATH="/opt/node/bin:${PATH}"
+
 # Set the default shell to bash
 ENV SHELL=/bin/bash

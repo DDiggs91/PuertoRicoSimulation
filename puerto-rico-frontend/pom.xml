@@ -11,4 +11,70 @@
     <groupId>com.PRS</groupId>
     <artifactId>puerto-rico-frontend</artifactId>
 
+    <build>
+        <plugins>
+            <!-- Installs its own isolated Node/npm under target/ rather than requiring a system
+                 install, so `./mvnw verify` is self-sufficient. Playwright is deliberately not
+                 run here — it needs browser binaries and a booted app; see npm run test:e2e and
+                 the e2e CI job instead. -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>${frontend.maven.plugin.version}</version>
+                <configuration>
+                    <nodeVersion>${node.version}</nodeVersion>
+                    <installDirectory>${project.build.directory}</installDirectory>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install node and npm</id>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>npm ci</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>ci</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <!-- Generates src/api/schema.d.ts from puerto-rico-contract's OpenAPI
+                             spec. Also runs as prebuild/pretest npm hooks, so this execution
+                             exists mainly to fail the build fast, before wasting time on a build
+                             or test run against a stale/missing schema. -->
+                        <id>generate api types</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run generate:api</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>npm build</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run build</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>npm test</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <phase>test</phase>
+                        <configuration>
+                            <arguments>run test:unit</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

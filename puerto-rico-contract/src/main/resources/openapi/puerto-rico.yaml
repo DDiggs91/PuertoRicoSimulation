@@ -1,0 +1,948 @@
+openapi: 3.0.3
+info:
+  title: Puerto Rico Simulation API
+  description: >
+    The Lobby and Game Session wire contract exposed by puerto-rico-web.
+    Java (puerto-rico-web) and TypeScript (puerto-rico-frontend) are both
+    generated from this file; neither hand-writes the wire shape.
+  version: "0.0.1"
+
+servers:
+  - url: /api
+
+paths:
+  /games:
+    post:
+      operationId: createGame
+      tags: [Lobby]
+      responses:
+        "201":
+          description: Table created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateGameResponse"
+    get:
+      operationId: listGames
+      tags: [Lobby]
+      responses:
+        "200":
+          description: Every tracked table
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GameTableSummary"
+
+  /games/{gameId}:
+    parameters:
+      - $ref: "#/components/parameters/GameId"
+    get:
+      operationId: getGame
+      tags: [Lobby]
+      responses:
+        "200":
+          description: The table's current summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameTableSummary"
+        "404":
+          $ref: "#/components/responses/Problem"
+
+  /games/{gameId}/seats:
+    parameters:
+      - $ref: "#/components/parameters/GameId"
+    post:
+      operationId: seatActor
+      tags: [Lobby]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeatRequest"
+      responses:
+        "200":
+          description: Seated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SeatResponse"
+        "400":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+
+  /games/{gameId}/start:
+    parameters:
+      - $ref: "#/components/parameters/GameId"
+    post:
+      operationId: startGame
+      tags: [Lobby]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartRequest"
+      responses:
+        "200":
+          description: Started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameTableSummary"
+        "404":
+          $ref: "#/components/responses/Problem"
+        "409":
+          $ref: "#/components/responses/Problem"
+
+  /games/{gameId}/state:
+    parameters:
+      - $ref: "#/components/parameters/GameId"
+    get:
+      operationId: getGameState
+      tags: [Game]
+      responses:
+        "200":
+          description: The current, redacted game state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GameView"
+        "404":
+          $ref: "#/components/responses/Problem"
+
+  /games/{gameId}/decision:
+    parameters:
+      - $ref: "#/components/parameters/GameId"
+    get:
+      operationId: getPendingDecision
+      tags: [Game]
+      responses:
+        "200":
+          description: The decision currently awaiting an answer, if any
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Decision"
+        "404":
+          $ref: "#/components/responses/Problem"
+
+  /games/{gameId}/events:
+    parameters:
+      - $ref: "#/components/parameters/GameId"
+    get:
+      operationId: streamGameEvents
+      tags: [GameStream]
+      description: >
+        Server-Sent Events stream of SessionEvent, one event per game state
+        change. Deliberately its own tag, generating a GameStreamApi
+        interface that nothing implements: SseEmitter (what a real streaming
+        controller method must return) has no natural OpenAPI response shape,
+        so the generated ResponseEntity<SessionEvent> signature isn't usable
+        as-is. GameController implements this path by hand at the same
+        route; this operation exists in the spec for documentation and
+        TypeScript generation only.
+      responses:
+        "200":
+          description: An open SSE stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/SessionEvent"
+
+  /games/{gameId}/moves:
+    parameters:
+      - $ref: "#/components/parameters/GameId"
+    post:
+      operationId: submitMove
+      tags: [Game]
+      description: >
+        Offers a move for the seat identified by the move's own `action.seat`
+        (proven by X-Seat-Token). A 202 means the offer was handed to that
+        seat's HumanActor and will be applied on the session's own thread —
+        it is not confirmation the move has landed yet. Subscribe to
+        /games/{gameId}/events for that; this endpoint deliberately doesn't
+        return post-move state, since none is guaranteed to exist
+        synchronously with the HTTP response.
+      parameters:
+        - $ref: "#/components/parameters/SeatToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MoveRequest"
+      responses:
+        "202":
+          description: Offer accepted; watch the event stream for the applied move
+        "400":
+          $ref: "#/components/responses/Problem"
+        "403":
+          $ref: "#/components/responses/Problem"
+        "404":
+          $ref: "#/components/responses/Problem"
+
+  /ai/engines:
+    get:
+      operationId: listAiEngines
+      tags: [Ai]
+      responses:
+        "200":
+          description: Engines available to seat
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiEngineInfo"
+
+components:
+  parameters:
+    GameId:
+      name: gameId
+      in: path
+      required: true
+      schema:
+        type: string
+    SeatToken:
+      name: X-Seat-Token
+      in: header
+      required: false
+      description: >
+        Required to submit a move for a human seat; proves the caller holds
+        that seat. Omitted entirely for AI seats, which never receive moves
+        over this endpoint.
+      schema:
+        type: string
+
+  responses:
+    Problem:
+      description: A rejected or invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+  schemas:
+    # --- lobby ---
+
+    ActorKind:
+      type: string
+      enum: [AI, HUMAN]
+
+    GameTableStatus:
+      type: string
+      enum: [OPEN, STARTED]
+
+    SeatSummary:
+      type: object
+      required: [name, kind]
+      properties:
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ActorKind"
+
+    GameTableSummary:
+      type: object
+      required: [id, seats, status]
+      properties:
+        id:
+          type: string
+        seats:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeatSummary"
+        status:
+          $ref: "#/components/schemas/GameTableStatus"
+
+    CreateGameResponse:
+      type: object
+      required: [gameId]
+      properties:
+        gameId:
+          type: string
+
+    SeatRequest:
+      type: object
+      required: [name, kind]
+      properties:
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ActorKind"
+        engineId:
+          type: string
+          nullable: true
+          description: Required when kind is AI; identifies an AiEngineInfo.id.
+
+    SeatResponse:
+      type: object
+      required: [seatIndex]
+      properties:
+        seatIndex:
+          type: integer
+        seatToken:
+          type: string
+          nullable: true
+          description: Present only for a HUMAN seat.
+
+    StartRequest:
+      type: object
+      properties:
+        seed:
+          type: integer
+          format: int64
+          nullable: true
+
+    AiEngineInfo:
+      type: object
+      required: [id, displayName, description]
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: string
+
+    Problem:
+      type: object
+      required: [status, title]
+      properties:
+        status:
+          type: integer
+        title:
+          type: string
+        detail:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+          description: The RejectionReason or LobbyRejectionReason enum name, when applicable.
+
+    # --- model enums ---
+
+    Good:
+      type: string
+      enum: [CORN, INDIGO, SUGAR, TOBACCO, COFFEE]
+
+    TileType:
+      type: string
+      enum: [CORN, INDIGO, SUGAR, TOBACCO, COFFEE, QUARRY]
+
+    Role:
+      type: string
+      enum: [SETTLER, MAYOR, BUILDER, CRAFTSMAN, TRADER, CAPTAIN, PROSPECTOR]
+
+    BuildingType:
+      type: string
+      enum:
+        - SMALL_INDIGO_PLANT
+        - SMALL_SUGAR_MILL
+        - INDIGO_PLANT
+        - SUGAR_MILL
+        - TOBACCO_STORAGE
+        - COFFEE_ROASTER
+        - SMALL_MARKET
+        - HACIENDA
+        - CONSTRUCTION_HUT
+        - SMALL_WAREHOUSE
+        - HOSPICE
+        - OFFICE
+        - LARGE_MARKET
+        - LARGE_WAREHOUSE
+        - FACTORY
+        - UNIVERSITY
+        - HARBOR
+        - WHARF
+        - GUILD_HALL
+        - RESIDENCE
+        - FORTRESS
+        - CUSTOMS_HOUSE
+        - CITY_HALL
+
+    RejectionReason:
+      type: string
+      enum:
+        - GAME_OVER
+        - NOT_YOUR_TURN
+        - WRONG_PHASE
+        - ROLE_UNAVAILABLE
+        - NO_ISLAND_SPACE
+        - TILE_UNAVAILABLE
+        - QUARRY_NOT_ALLOWED
+        - NO_CITY_SPACE
+        - DUPLICATE_BUILDING
+        - BUILDING_UNAVAILABLE
+        - INSUFFICIENT_DOUBLOONS
+        - GOOD_NOT_HELD
+        - GOOD_NOT_PRODUCED
+        - TRADING_HOUSE_FULL
+        - DUPLICATE_GOOD_IN_TRADING_HOUSE
+        - SHIP_UNAVAILABLE
+        - SUBOPTIMAL_SHIP
+        - WHARF_UNAVAILABLE
+        - LOADING_IS_MANDATORY
+        - INVALID_COLONIST_MOVE
+        - COLONISTS_UNPLACED
+        - INVALID_STORAGE
+
+    # --- board state (read-only view types) ---
+
+    IslandTile:
+      type: object
+      required: [type, occupied]
+      properties:
+        type:
+          $ref: "#/components/schemas/TileType"
+        occupied:
+          type: boolean
+
+    PlacedBuilding:
+      type: object
+      required: [type, colonists]
+      properties:
+        type:
+          $ref: "#/components/schemas/BuildingType"
+        colonists:
+          type: integer
+
+    GoodsMap:
+      type: object
+      description: Barrel counts keyed by Good name.
+      additionalProperties:
+        type: integer
+
+    BuildingSupplyMap:
+      type: object
+      description: Copies remaining keyed by BuildingType name.
+      additionalProperties:
+        type: integer
+
+    PlayerStateView:
+      type: object
+      required:
+        - seat
+        - name
+        - doubloons
+        - victoryPoints
+        - island
+        - buildings
+        - colonistsInSanJuan
+        - goods
+      properties:
+        seat:
+          type: integer
+        name:
+          type: string
+        doubloons:
+          type: integer
+        victoryPoints:
+          type: integer
+        island:
+          type: array
+          items:
+            $ref: "#/components/schemas/IslandTile"
+        buildings:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlacedBuilding"
+        colonistsInSanJuan:
+          type: integer
+        goods:
+          $ref: "#/components/schemas/GoodsMap"
+
+    CargoShipView:
+      type: object
+      required: [capacity, loaded]
+      properties:
+        capacity:
+          type: integer
+        cargo:
+          allOf:
+            - $ref: "#/components/schemas/Good"
+          nullable: true
+        loaded:
+          type: integer
+
+    TradingHouseView:
+      type: object
+      required: [goods]
+      properties:
+        goods:
+          type: array
+          items:
+            $ref: "#/components/schemas/Good"
+
+    RoleCardView:
+      type: object
+      required: [role, doubloons]
+      properties:
+        role:
+          $ref: "#/components/schemas/Role"
+        doubloons:
+          type: integer
+        takenBySeat:
+          type: integer
+          nullable: true
+
+    RoleTrackView:
+      type: object
+      required: [cards]
+      properties:
+        cards:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleCardView"
+
+    TileSupplyView:
+      type: object
+      description: >
+        Deliberately omits the draw pile, discard pile contents, and reshuffle
+        seed — those are exactly the game's hidden information. Only counts
+        and the public face-up row survive the redaction this mapper performs.
+      required: [faceUp, quarriesRemaining, faceDownCount, discardedCount]
+      properties:
+        faceUp:
+          type: array
+          items:
+            $ref: "#/components/schemas/TileType"
+        quarriesRemaining:
+          type: integer
+        faceDownCount:
+          type: integer
+        discardedCount:
+          type: integer
+
+    GameConfigView:
+      type: object
+      description: >
+        Omits GameConfig.seed on purpose: it is the seed the initial tile
+        shuffle was derived from, so leaking it would leak the same
+        information TileSupplyView redacts.
+      required: [playerNames]
+      properties:
+        playerNames:
+          type: array
+          items:
+            type: string
+
+    ColonistSlot:
+      type: object
+      required: [type, index]
+      properties:
+        type:
+          type: string
+          enum: [ISLAND, BUILDING]
+        index:
+          type: integer
+
+    Phase:
+      type: object
+      description: >
+        Flattened rather than a discriminated hierarchy: the client only ever
+        renders a Phase, never constructs one, and the nine variants' fields
+        overlap enough that one object with optional fields is simpler than
+        nine schemas for no lost type safety on the consuming side.
+      required: [type, actorSeat]
+      properties:
+        type:
+          type: string
+          enum:
+            - ROLE_SELECTION
+            - SETTLER
+            - MAYOR
+            - BUILDER
+            - CRAFTSMAN_BONUS
+            - TRADER
+            - CAPTAIN_LOADING
+            - CAPTAIN_STORAGE
+            - GAME_OVER
+        actorSeat:
+          type: integer
+          description: -1 when type is GAME_OVER.
+        chooserSeat:
+          type: integer
+          nullable: true
+        queue:
+          type: array
+          nullable: true
+          items:
+            type: integer
+        haciendaOffered:
+          type: boolean
+          nullable: true
+        craftsmanOptions:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/Good"
+        wharfUsed:
+          type: array
+          nullable: true
+          items:
+            type: integer
+        bonusUsed:
+          type: boolean
+          nullable: true
+
+    GameStateView:
+      type: object
+      required:
+        - config
+        - players
+        - governorSeat
+        - roles
+        - tiles
+        - goods
+        - buildings
+        - tradingHouse
+        - ships
+        - colonistSupply
+        - colonistsOnShip
+        - victoryPointSupply
+        - phase
+        - finalRound
+      properties:
+        config:
+          $ref: "#/components/schemas/GameConfigView"
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerStateView"
+        governorSeat:
+          type: integer
+        roles:
+          $ref: "#/components/schemas/RoleTrackView"
+        tiles:
+          $ref: "#/components/schemas/TileSupplyView"
+        goods:
+          $ref: "#/components/schemas/GoodsMap"
+        buildings:
+          $ref: "#/components/schemas/BuildingSupplyMap"
+        tradingHouse:
+          $ref: "#/components/schemas/TradingHouseView"
+        ships:
+          type: array
+          items:
+            $ref: "#/components/schemas/CargoShipView"
+        colonistSupply:
+          type: integer
+        colonistsOnShip:
+          type: integer
+        victoryPointSupply:
+          type: integer
+        phase:
+          $ref: "#/components/schemas/Phase"
+        finalRound:
+          type: boolean
+
+    GameView:
+      type: object
+      required: [state]
+      properties:
+        state:
+          $ref: "#/components/schemas/GameStateView"
+        viewerSeat:
+          type: integer
+          nullable: true
+          description: Null for a spectator.
+
+    ScoreBreakdown:
+      type: object
+      required: [seat, name, chips, buildingPoints, bonusPoints, tiebreak, total]
+      properties:
+        seat:
+          type: integer
+        name:
+          type: string
+        chips:
+          type: integer
+        buildingPoints:
+          type: integer
+        bonusPoints:
+          type: integer
+        tiebreak:
+          type: integer
+        total:
+          type: integer
+          description: chips + buildingPoints + bonusPoints, computed by the mapper.
+
+    Decision:
+      type: object
+      required: [seat, view, options, requestId]
+      properties:
+        seat:
+          type: integer
+        view:
+          $ref: "#/components/schemas/GameView"
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerAction"
+        requestId:
+          type: integer
+          format: int64
+
+    MoveRequest:
+      type: object
+      required: [requestId, action]
+      properties:
+        requestId:
+          type: integer
+          format: int64
+        action:
+          $ref: "#/components/schemas/PlayerAction"
+
+    # --- PlayerAction: discriminated hierarchy, one schema per sealed variant ---
+
+    PlayerAction:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          SELECT_ROLE: "#/components/schemas/SelectRoleAction"
+          TAKE_FACE_UP_TILE: "#/components/schemas/TakeFaceUpTileAction"
+          TAKE_QUARRY: "#/components/schemas/TakeQuarryAction"
+          TAKE_HACIENDA_TILE: "#/components/schemas/TakeHaciendaTileAction"
+          SKIP_HACIENDA: "#/components/schemas/SkipHaciendaAction"
+          PASS_SETTLING: "#/components/schemas/PassSettlingAction"
+          PLACE_COLONIST: "#/components/schemas/PlaceColonistAction"
+          END_COLONIST_PLACEMENT: "#/components/schemas/EndColonistPlacementAction"
+          BUILD_BUILDING: "#/components/schemas/BuildBuildingAction"
+          PASS_BUILDING: "#/components/schemas/PassBuildingAction"
+          TAKE_CRAFTSMAN_BONUS: "#/components/schemas/TakeCraftsmanBonusAction"
+          PASS_CRAFTSMAN_BONUS: "#/components/schemas/PassCraftsmanBonusAction"
+          SELL_GOOD: "#/components/schemas/SellGoodAction"
+          PASS_TRADING: "#/components/schemas/PassTradingAction"
+          LOAD_SHIP: "#/components/schemas/LoadShipAction"
+          LOAD_WHARF: "#/components/schemas/LoadWharfAction"
+          STORE_GOODS: "#/components/schemas/StoreGoodsAction"
+      required: [type, seat]
+      properties:
+        type:
+          type: string
+        seat:
+          type: integer
+
+    SelectRoleAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [role]
+          properties:
+            role:
+              $ref: "#/components/schemas/Role"
+
+    TakeFaceUpTileAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [faceUpIndex]
+          properties:
+            faceUpIndex:
+              type: integer
+
+    TakeQuarryAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    TakeHaciendaTileAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    SkipHaciendaAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    PassSettlingAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    PlaceColonistAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [slot]
+          properties:
+            slot:
+              $ref: "#/components/schemas/ColonistSlot"
+
+    EndColonistPlacementAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    BuildBuildingAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [buildingType]
+          properties:
+            buildingType:
+              $ref: "#/components/schemas/BuildingType"
+
+    PassBuildingAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    TakeCraftsmanBonusAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [good]
+          properties:
+            good:
+              $ref: "#/components/schemas/Good"
+
+    PassCraftsmanBonusAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    SellGoodAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [good]
+          properties:
+            good:
+              $ref: "#/components/schemas/Good"
+
+    PassTradingAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+
+    LoadShipAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [shipIndex, good]
+          properties:
+            shipIndex:
+              type: integer
+            good:
+              $ref: "#/components/schemas/Good"
+
+    LoadWharfAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [good]
+          properties:
+            good:
+              $ref: "#/components/schemas/Good"
+
+    StoreGoodsAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
+        - type: object
+          required: [warehouseKinds]
+          properties:
+            warehouseKinds:
+              type: array
+              items:
+                $ref: "#/components/schemas/Good"
+            singleBarrel:
+              allOf:
+                - $ref: "#/components/schemas/Good"
+              nullable: true
+
+    # --- SessionEvent: discriminated hierarchy, one schema per sealed variant ---
+
+    SessionEvent:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          GAME_STARTED: "#/components/schemas/GameStartedEvent"
+          DECISION_REQUESTED: "#/components/schemas/DecisionRequestedEvent"
+          ACTION_APPLIED: "#/components/schemas/ActionAppliedEvent"
+          ACTION_REJECTED: "#/components/schemas/ActionRejectedEvent"
+          GAME_ENDED: "#/components/schemas/GameEndedEvent"
+          SESSION_FAILED: "#/components/schemas/SessionFailedEvent"
+      required: [type, view]
+      properties:
+        type:
+          type: string
+        view:
+          $ref: "#/components/schemas/GameView"
+
+    GameStartedEvent:
+      allOf:
+        - $ref: "#/components/schemas/SessionEvent"
+        - type: object
+          required: [seatNames]
+          properties:
+            seatNames:
+              type: array
+              items:
+                type: string
+
+    DecisionRequestedEvent:
+      allOf:
+        - $ref: "#/components/schemas/SessionEvent"
+        - type: object
+          required: [seat, options, requestId]
+          properties:
+            seat:
+              type: integer
+            options:
+              type: array
+              items:
+                $ref: "#/components/schemas/PlayerAction"
+            requestId:
+              type: integer
+              format: int64
+
+    ActionAppliedEvent:
+      allOf:
+        - $ref: "#/components/schemas/SessionEvent"
+        - type: object
+          required: [seat, action]
+          properties:
+            seat:
+              type: integer
+            action:
+              $ref: "#/components/schemas/PlayerAction"
+
+    ActionRejectedEvent:
+      allOf:
+        - $ref: "#/components/schemas/SessionEvent"
+        - type: object
+          required: [seat, action, reason, detail]
+          properties:
+            seat:
+              type: integer
+            action:
+              $ref: "#/components/schemas/PlayerAction"
+            reason:
+              $ref: "#/components/schemas/RejectionReason"
+            detail:
+              type: string
+
+    GameEndedEvent:
+      allOf:
+        - $ref: "#/components/schemas/SessionEvent"
+        - type: object
+          required: [standings]
+          properties:
+            standings:
+              type: array
+              items:
+                $ref: "#/components/schemas/ScoreBreakdown"
+
+    SessionFailedEvent:
+      allOf:
+        - $ref: "#/components/schemas/SessionEvent"
+        - type: object
+          required: [detail]
+          properties:
+            detail:
+              type: string

@@ -74,9 +74,13 @@ Session exists.
 ### 6. Web/API Layer (Spring Boot backend)
 
 The only component that talks to browsers. Translates HTTP requests into
-Lobby actions, and a real-time channel (e.g. WebSocket) into in-game
-moves. Pushes game state/event updates back out to connected clients,
-whether they're seated players or spectators.
+Lobby actions, and HTTP moves into in-game actions. Pushes game
+state/event updates back out to connected clients over Server-Sent Events,
+whether they're seated players or spectators. SSE rather than WebSocket:
+the broadcast contract is already one-directional (session → listener),
+SSE is plain HTTP that reconnects natively, and moves already have their
+own request/response endpoint with no need for a second channel to carry
+them.
 
 ### 7. Web Frontend (browser client)
 
@@ -95,7 +99,7 @@ Named here to show how components connect; none are designed yet.
 | Decision contract | Game Session ↔ Human Actor Adapter / AI Engine Plugin | "Given this state and these legal options, what do you choose?" — same shape whether a human or AI answers. |
 | Event/broadcast contract | Game Session → Web/API Layer | Notifies of state changes so they can be pushed to every connected client. |
 | Lobby contract | Web/API Layer ↔ Lobby Manager | Create/list/join a game; seat a human or an AI engine into a seat. |
-| Wire contract | Web/API Layer ↔ Web Frontend | The browser-facing protocol: request/response for lobby actions, a real-time channel for live play and spectating. |
+| Wire contract | Web/API Layer ↔ Web Frontend | The browser-facing protocol: request/response for lobby actions, an SSE channel for live play and spectating. Designed as an OpenAPI spec in `puerto-rico-contract`, generating both sides — see that module. |
 
 ## Deployment target
 
@@ -119,8 +123,9 @@ README with the same accomplishes/contracts framing as above:
 | Game Session (Orchestrator) | [puerto-rico-session](../puerto-rico-session/README.md) | puerto-rico-model |
 | AI Engine Plugins | [puerto-rico-ai](../puerto-rico-ai/README.md) | puerto-rico-model, puerto-rico-session |
 | Lobby / Matchmaking Manager | [puerto-rico-lobby](../puerto-rico-lobby/README.md) | puerto-rico-session |
-| Web Frontend | [frontend](../frontend/README.md) (`puerto-rico-frontend`) | — |
-| Web/API Layer + Human Actor Adapter | [puerto-rico-web](../puerto-rico-web/README.md) | puerto-rico-lobby, puerto-rico-ai, puerto-rico-frontend |
+| Wire Contract (OpenAPI) | [puerto-rico-contract](../puerto-rico-contract/README.md) | — |
+| Web Frontend | [puerto-rico-frontend](../puerto-rico-frontend/README.md) | — (generates TS from puerto-rico-contract's spec at build time) |
+| Web/API Layer + Human Actor Adapter | [puerto-rico-web](../puerto-rico-web/README.md) | puerto-rico-lobby, puerto-rico-ai, puerto-rico-contract, puerto-rico-frontend |
 
 The Human Actor Adapter component is folded into `puerto-rico-web` rather
 than given its own module: it has no existence independent of a browser
@@ -136,15 +141,25 @@ builds as part of the same reactor, and — as an ordinary Maven artifact —
 can be depended on directly by `puerto-rico-web` rather than glued in
 through an ad hoc copy step.
 
+## Decisions made since this outline was written
+
+- **Frontend framework.** React + Vite + TypeScript, with Vitest/React
+  Testing Library for unit tests and Playwright for functional tests
+  against the real packaged app. See `puerto-rico-frontend`'s README.
+- **Player/spectator permission boundary.** A per-seat token, minted when a
+  human seats and required (via an `X-Seat-Token` header) to submit a move
+  for that seat. Everyone can read every endpoint; only a token holder can
+  act as that seat. See `puerto-rico-web`'s README.
+- **Wire contract format.** An OpenAPI spec (`puerto-rico-contract`),
+  generating both the Java server interfaces and the TypeScript client
+  types from one file, rather than either side hand-writing DTOs.
+
 ## Open questions (not decided here)
 
-- **Frontend framework.** Repo placement and deployment shape are now
-  settled (lives in this repo as `/frontend`, bundled into the
-  `puerto-rico-web` Docker image), but the specific framework/build
-  tooling is still undecided.
-- **Player/spectator permission boundary.** Who can submit a move vs.
-  only observe on the wire contract is a real design concern, left for
-  when that contract is actually designed.
+None currently blocking — the frontend's move-submission UI (the
+human-plays-a-turn interaction, as opposed to the read-only spectator
+board already built) is scoped and deferred, not undecided; see
+`puerto-rico-frontend`'s README for what's built and what's left.
 
 Persistence and a networked/out-of-process AI protocol remain deliberately
 out of scope per the scoping decisions above — not open questions, just
