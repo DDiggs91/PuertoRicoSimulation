@@ -5,6 +5,7 @@ FROM eclipse-temurin:25-jdk-noble
 RUN apt-get update && apt-get install -y \
     git \
     curl \
+    xz-utils \
     procps \
     && rm -rf /var/lib/apt/lists/*
 
@@ -13,9 +14,9 @@ RUN apt-get update && apt-get install -y \
 # Temurin 25 JDK already in this image.
 ARG MAVEN_VERSION=3.9.16
 RUN curl -fsSL -o /tmp/maven.tar.gz \
-        "https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
+    "https://dlcdn.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
     && curl -fsSL -o /tmp/maven.tar.gz.sha512 \
-        "https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz.sha512" \
+    "https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz.sha512" \
     && echo "$(cat /tmp/maven.tar.gz.sha512)  /tmp/maven.tar.gz" | sha512sum -c - \
     && tar -xzf /tmp/maven.tar.gz -C /opt \
     && ln -s "/opt/apache-maven-${MAVEN_VERSION}" /opt/maven \
