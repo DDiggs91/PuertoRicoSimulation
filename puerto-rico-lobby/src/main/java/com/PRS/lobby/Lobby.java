@@ -4,7 +4,12 @@ import com.PRS.session.GameSession;
 import com.PRS.session.actors.Actor;
 import com.PRS.session.actors.ActorKind;
 import com.PRS.session.events.SessionListener;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,11 +25,28 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class Lobby implements AutoCloseable {
 
+  /**
+   * How long a table outlives the thing that finished it. A game's final board and standings stay
+   * readable this long after it ends, and a table nobody ever sat at is reclaimed on the same
+   * schedule.
+   */
+  public static final Duration DEFAULT_RETENTION = Duration.ofMinutes(30);
+
   private final ConcurrentHashMap<GameId, GameTable> tables = new ConcurrentHashMap<>();
+  private final Clock clock;
+
+  public Lobby() {
+    this(Clock.systemUTC());
+  }
+
+  /** Test seam: lets a sweep test move time without sleeping. */
+  public Lobby(Clock clock) {
+    this.clock = clock;
+  }
 
   public GameId createGame() {
     GameId id = GameId.newId();
-    tables.put(id, new GameTable(id));
+    tables.put(id, new GameTable(id, Instant.now(clock)));
     return id;
   }
 
@@ -66,8 +88,45 @@ public final class Lobby implements AutoCloseable {
     return Optional.ofNullable(tables.get(id)).map(GameTable::session);
   }
 
+  /**
+   * Drops one table, shutting down its runner. Returns false if there was no such table. The caller
+   * is responsible for anything keyed on the same {@link GameId} elsewhere — seat tokens and SSE
+   * subscriptions both are.
+   */
+  public boolean remove(GameId id) {
+    GameTable table = tables.remove(id);
+    if (table == null) {
+      return false;
+    }
+    table.closeRunner();
+    return true;
+  }
+
+  /** Sweeps with {@link #DEFAULT_RETENTION}. */
+  public List<GameId> evictStaleTables() {
+    return evictStaleTables(DEFAULT_RETENTION);
+  }
+
+  /**
+   * Drops every table that has been finished, failed, or created-and-never-seated for longer than
+   * {@code retention}, and returns their ids so the caller can evict whatever it keys on them.
+   * Without this the map, and every {@code GameState} and {@code SessionRunner} thread it holds,
+   * grows for the process's lifetime.
+   */
+  public List<GameId> evictStaleTables(Duration retention) {
+    Instant now = Instant.now(clock);
+    List<GameId> evicted = new ArrayList<>();
+    for (Map.Entry<GameId, GameTable> entry : tables.entrySet()) {
+      if (entry.getValue().isEvictable(now, retention) && remove(entry.getKey())) {
+        evicted.add(entry.getKey());
+      }
+    }
+    return List.copyOf(evicted);
+  }
+
   @Override
   public void close() {
     tables.values().forEach(GameTable::closeRunner);
+    tables.clear();
   }
 }

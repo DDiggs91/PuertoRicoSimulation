@@ -20,6 +20,7 @@ rulebook in [docs/puerto-rico-rules-en.pdf](../docs/puerto-rico-rules-en.pdf).
 Exposes the **Command/Query contract** consumed by `puerto-rico-session`.
 Three entry points, all pure functions:
 
+
 ```java
 GameState          state   = GameSetup.create(new GameConfig(names, seed));
 List<PlayerAction> options = GameEngine.legalActions(state);
@@ -33,6 +34,14 @@ so the layer above can turn it into a client error without catching anything.
 `GameState` is an immutable record tree. `apply` never touches its argument,
 so callers get snapshots, replay, and lookahead search for free — no
 defensive copying. Games are reproducible from their `GameConfig` seed.
+
+One more public surface sits alongside those three: `RandomPlay.choose`,
+which picks uniformly at random from a list of legal actions. It ships here
+rather than in `puerto-rico-ai` because it is not really a strategy — it is
+the reference way to walk the action space, used both by this module's own
+fuzz tests and by `puerto-rico-ai`'s `RandomAi`. Keeping one copy means the
+tests and the shipped engine cannot drift apart; `puerto-rico-ai`'s README
+makes the same argument from the other side.
 
 This module does not know about actors, decisions, sessions, or lobbies —
 those concerns live upstream in `puerto-rico-session`.
@@ -52,7 +61,7 @@ directly or transitively.
 | `com.PRS.model.rolecards` | `Role`, `RoleCard`, `RoleTrack` |
 | `com.PRS.model.game` | `GameConfig`, `SetupTable`, `GameSetup`, `GameState`, `Phase` |
 | `com.PRS.model.actions` | `PlayerAction` (sealed, one record per decision), `ColonistSlot` |
-| `com.PRS.model.engine` | `GameEngine`, `ActionResult`, `RejectionReason`, and one package-private handler per phase |
+| `com.PRS.model.engine` | `GameEngine`, `ActionResult`, `RejectionReason`, `RandomPlay`, and one package-private handler per phase |
 | `com.PRS.model.scoring` | `Scorer`, `ScoreBreakdown` |
 
 ## Design notes
@@ -75,13 +84,23 @@ when their turn begins and placed from scratch: the same end positions are
 reachable, but every action strictly drains San Juan, so the phase always
 terminates.
 
-**Two known simplifications**, both cases where the rules make something
-optional that is never rationally declined:
+**Three known simplifications**, all cases where the rules leave a choice
+that is never rationally made either way:
 
 - The mayor's extra colonist is taken automatically whenever the supply
   holds one. Declining could in principle delay the colonist-supply end
   trigger by a round.
 - The prospector's doubloon is taken automatically.
+- With two prospector cards in play (five players), the chooser is given
+  whichever carries more doubloons rather than being asked
+  (`RoleTrack.indexToTake`). The cards are otherwise identical, so the
+  richer one is strictly better.
+
+The Wharf is *not* on this list: the rulebook makes using it optional even
+though loading is otherwise compulsory, and the engine honours that — a
+player whose only remaining option is the Wharf is offered
+`PlayerAction.DeclineWharf`. Declining when a cargo ship would still take
+something is refused with `LOADING_IS_MANDATORY`.
 
 **Where a tile or building sits does not matter.** Island tiles are an
 unordered list capped at 12, and city space is tracked as a count — the

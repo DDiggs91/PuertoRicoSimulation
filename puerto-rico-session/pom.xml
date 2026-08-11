@@ -16,6 +16,14 @@
             <groupId>com.PRS</groupId>
             <artifactId>puerto-rico-model</artifactId>
         </dependency>
+        <!-- GameSession logs. Declared here because the root POM deliberately no longer puts
+             spring-boot-starter-web on every module, which is where slf4j used to arrive from.
+             Version comes from the Spring Boot BOM, so it stays in step with the binding Boot
+             chooses at runtime. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>

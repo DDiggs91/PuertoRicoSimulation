@@ -58,6 +58,20 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <!-- Formatting is automatic and auto-fixing, exactly like fmt-maven-plugin
+                             on the Java side: it rewrites files to match rather than failing the
+                             build on a violation, so both halves of the repo behave the same way
+                             and CI needs no separate check step. Runs before the build so what
+                             gets compiled is what got formatted. -->
+                        <id>npm format</id>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run format</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
                         <id>npm build</id>
                         <goals>
                             <goal>npm</goal>

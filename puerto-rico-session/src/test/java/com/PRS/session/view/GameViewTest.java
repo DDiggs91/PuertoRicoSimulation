@@ -23,6 +23,9 @@ public class GameViewTest {
     assertThat(view.state().tiles().drawPile()).isEmpty();
     assertThat(view.state().tiles().discardPile()).isEmpty();
     assertThat(view.state().tiles().seed()).isZero();
+    // GameSetup derives the whole shuffle from the config seed, so leaving it would undo the rest.
+    assertThat(view.state().config().seed()).isZero();
+    assertThat(state.config().seed()).as("the caller's own state is untouched").isEqualTo(42L);
   }
 
   @Test
@@ -43,6 +46,7 @@ public class GameViewTest {
     assertThat(view.state().tiles().faceUp()).isEqualTo(state.tiles().faceUp());
     assertThat(view.state().tiles().quarriesRemaining())
         .isEqualTo(state.tiles().quarriesRemaining());
+    assertThat(view.state().config().playerNames()).isEqualTo(state.config().playerNames());
     assertThat(view.state().players()).isEqualTo(state.players());
     assertThat(view.state().ships()).isEqualTo(state.ships());
     assertThat(view.state().tradingHouse()).isEqualTo(state.tradingHouse());

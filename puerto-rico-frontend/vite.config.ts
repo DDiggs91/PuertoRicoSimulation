@@ -23,5 +23,14 @@ export default defineConfig({
     // e2e/ holds Playwright specs, which define their own test() — Vitest's default include
     // glob would otherwise pick those files up too and collide with Playwright's runner.
     exclude: ["e2e/**", "node_modules/**"],
+    // Reported only on demand (`npm run test:unit:coverage`), not on every `test:unit` — the
+    // reactor build runs the suite constantly and instrumenting it there would be pure cost.
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "html"],
+      reportsDirectory: "target/coverage",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/api/schema.d.ts", "src/test/**", "src/main.tsx", "src/**/*.test.{ts,tsx}"],
+    },
   },
 });

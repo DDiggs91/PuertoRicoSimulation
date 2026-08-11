@@ -30,8 +30,13 @@ public record TileSupply(
     faceUp = List.copyOf(faceUp);
   }
 
-  /** All 50 plantation tiles shuffled, with the face-up row dealt and all 8 quarries available. */
-  public static TileSupply create(int playerCount, long seed) {
+  /**
+   * All 50 plantation tiles shuffled, with all 8 quarries available and no face-up row dealt yet.
+   * How many tiles go face up scales with the player count, a setup rule that lives in {@code
+   * SetupTable} — which this package deliberately does not depend on — so the caller deals the row
+   * with {@link #refillFaceUp}.
+   */
+  public static TileSupply create(long seed) {
     List<TileType> tiles = new ArrayList<>();
     for (TileType type : TileType.values()) {
       if (type.isQuarry()) {
@@ -43,9 +48,8 @@ public record TileSupply(
     }
     Random random = new Random(seed);
     Collections.shuffle(tiles, random);
-    TileSupply shuffled =
-        new TileSupply(tiles, List.of(), List.of(), TileType.QUARRY.tileCount(), random.nextLong());
-    return shuffled.refillFaceUp(playerCount + 1);
+    return new TileSupply(
+        tiles, List.of(), List.of(), TileType.QUARRY.tileCount(), random.nextLong());
   }
 
   public TileSupply takeFaceUp(int index) {

@@ -384,4 +384,100 @@ public class CaptainPhaseTest {
 
     assertThat(state.phase()).isInstanceOf(Phase.RoleSelection.class);
   }
+
+  /**
+   * The rulebook makes the Wharf optional even though loading is otherwise compulsory, so a turn
+   * whose only shipping option is the Wharf must still offer a way out.
+   */
+  @Test
+  public void aWharfOwnerWithNoLoadableShipIsOfferedAWayToDecline() {
+    GameState state = wharfIsTheOnlyOption();
+
+    assertThat(GameEngine.legalActions(state))
+        .contains(new PlayerAction.DeclineWharf(1))
+        .anySatisfy(action -> assertThat(action).isNotInstanceOf(PlayerAction.LoadWharf.class));
+  }
+
+  @Test
+  public void decliningTheWharfEndsTheTurnWithoutShipping() {
+    GameState state = wharfIsTheOnlyOption();
+    int supply = state.goods().available(Good.TOBACCO);
+
+    state = TestGames.apply(state, new PlayerAction.DeclineWharf(1));
+
+    assertThat(state.player(1).goodsCount(Good.TOBACCO)).isEqualTo(3);
+    assertThat(state.player(1).victoryPoints()).isZero();
+    assertThat(state.goods().available(Good.TOBACCO)).isEqualTo(supply);
+    assertThat(state.phase()).isNotInstanceOf(Phase.CaptainLoading.class);
+  }
+
+  @Test
+  public void decliningIsRefusedWhileACargoShipWouldStillTakeSomething() {
+    GameState state = withShips(TestGames.newGame(3), 4);
+    state =
+        state.withPlayer(
+            TestGames.player(0).goods(Good.TOBACCO, 3).building(BuildingType.WHARF).build());
+    state = TestGames.chooseRole(state, Role.CAPTAIN);
+
+    assertThat(TestGames.reject(state, new PlayerAction.DeclineWharf(0)).reason())
+        .isEqualTo(RejectionReason.LOADING_IS_MANDATORY);
+  }
+
+  /** Seat 1 holds tobacco, owns a staffed Wharf, and the only ship is full of another kind. */
+  private static GameState wharfIsTheOnlyOption() {
+    GameState state =
+        TestGames.newGame(3).toBuilder()
+            .ships(List.of(CargoShip.empty(4).load(Good.CORN, 4)))
+            .build()
+            .withPlayer(
+                TestGames.player(1).goods(Good.TOBACCO, 3).building(BuildingType.WHARF).build());
+    state = TestGames.chooseRole(state, Role.CAPTAIN);
+
+    assertThat(state.phase()).isInstanceOf(Phase.CaptainLoading.class);
+    assertThat(state.phase().actorSeat()).isEqualTo(1);
+    return state;
+  }
+
+  @Test
+  public void loadingTheWharfWithoutOwningOneIsRefused() {
+    GameState state = withShips(TestGames.newGame(3), 4);
+    state = state.withPlayer(TestGames.player(0).goods(Good.CORN, 2).build());
+    state = TestGames.chooseRole(state, Role.CAPTAIN);
+
+    assertThat(TestGames.reject(state, new PlayerAction.LoadWharf(0, Good.CORN)).reason())
+        .isEqualTo(RejectionReason.WHARF_UNAVAILABLE);
+  }
+
+  @Test
+  public void loadingAnUnoccupiedWharfIsRefused() {
+    GameState state = withShips(TestGames.newGame(3), 4);
+    // Zero colonists leaves the Wharf unoccupied, so its privilege is inactive.
+    state =
+        state.withPlayer(
+            TestGames.player(0).goods(Good.CORN, 2).building(BuildingType.WHARF, 0).build());
+    state = TestGames.chooseRole(state, Role.CAPTAIN);
+
+    assertThat(TestGames.reject(state, new PlayerAction.LoadWharf(0, Good.CORN)).reason())
+        .isEqualTo(RejectionReason.WHARF_UNAVAILABLE);
+  }
+
+  @Test
+  public void loadingAWharfAlreadySpentThisPhaseIsRefused() {
+    // An empty ship keeps seat 0 loadable after the Wharf is spent, so the turn comes back round
+    // and the second LoadWharf is refused rather than never being offered a chance to be.
+    GameState state = withShips(TestGames.newGame(3), 4);
+    state =
+        state.withPlayer(
+            TestGames.player(0)
+                .goods(Good.CORN, 2)
+                .goods(Good.TOBACCO, 2)
+                .building(BuildingType.WHARF)
+                .build());
+    state = TestGames.chooseRole(state, Role.CAPTAIN);
+    state = TestGames.apply(state, new PlayerAction.LoadWharf(0, Good.CORN));
+
+    assertThat(state.phase()).isInstanceOf(Phase.CaptainLoading.class);
+    assertThat(TestGames.reject(state, new PlayerAction.LoadWharf(0, Good.TOBACCO)).reason())
+        .isEqualTo(RejectionReason.WHARF_UNAVAILABLE);
+  }
 }

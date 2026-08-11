@@ -25,6 +25,7 @@ export type PlayerAction =
   | components["schemas"]["PassTradingAction"]
   | components["schemas"]["LoadShipAction"]
   | components["schemas"]["LoadWharfAction"]
+  | components["schemas"]["DeclineWharfAction"]
   | components["schemas"]["StoreGoodsAction"];
 
 export type SessionEvent =
@@ -47,3 +48,10 @@ export type Problem = components["schemas"]["Problem"];
 export type AiEngineInfo = components["schemas"]["AiEngineInfo"];
 export type ActorKind = components["schemas"]["ActorKind"];
 export type GameTableStatus = components["schemas"]["GameTableStatus"];
+export type GoodsMap = components["schemas"]["GoodsMap"];
+export type BuildingSupplyMap = components["schemas"]["BuildingSupplyMap"];
+export type CargoShipView = components["schemas"]["CargoShipView"];
+export type TradingHouseView = components["schemas"]["TradingHouseView"];
+export type RoleTrackView = components["schemas"]["RoleTrackView"];
+export type RoleCardView = components["schemas"]["RoleCardView"];
+export type TileSupplyView = components["schemas"]["TileSupplyView"];

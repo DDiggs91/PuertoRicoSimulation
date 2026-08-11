@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SessionEvent } from "../api/types";
 import { makeView } from "../test/fixtures";
-import { gameReducer, initialGameState } from "./gameReducer";
+import { MAX_RETAINED_EVENTS, gameReducer, initialGameState } from "./gameReducer";
 
 describe("gameReducer", () => {
   it("GAME_STARTED sets the view and records the event", () => {
@@ -68,7 +68,15 @@ describe("gameReducer", () => {
       type: "GAME_ENDED",
       view: makeView(),
       standings: [
-        { seat: 0, name: "Ana", chips: 10, buildingPoints: 5, bonusPoints: 0, tiebreak: 3, total: 15 },
+        {
+          seat: 0,
+          name: "Ana",
+          chips: 10,
+          buildingPoints: 5,
+          bonusPoints: 0,
+          tiebreak: 3,
+          total: 15,
+        },
       ],
     };
 
@@ -114,5 +122,57 @@ describe("gameReducer", () => {
     const afterSecond = gameReducer(afterFirst, second);
 
     expect(afterSecond.events).toEqual([first, second]);
+  });
+
+  /**
+   * A full game emits thousands of events. The board always comes from the latest view, so the log
+   * is scrollback — capping it bounds the DOM and the live region without losing anything the UI
+   * reads.
+   */
+  it("keeps only the most recent events once the cap is reached", () => {
+    let state = initialGameState;
+    for (let requestId = 0; requestId < MAX_RETAINED_EVENTS + 50; requestId++) {
+      state = gameReducer(state, {
+        type: "DECISION_REQUESTED",
+        view: makeView(),
+        seat: 0,
+        options: [],
+        requestId,
+      });
+    }
+
+    expect(state.events).toHaveLength(MAX_RETAINED_EVENTS);
+    const last = state.events.at(-1);
+    expect(last?.type === "DECISION_REQUESTED" && last.requestId).toBe(MAX_RETAINED_EVENTS + 49);
+    const first = state.events[0];
+    expect(first?.type === "DECISION_REQUESTED" && first.requestId).toBe(50);
+  });
+
+  it("a snapshot for a different game clears the previous game's log and standings", () => {
+    const ended: SessionEvent = { type: "GAME_ENDED", view: makeView(), standings: [] };
+    const previous = gameReducer(initialGameState, ended);
+    const view = makeView();
+
+    const next = gameReducer(previous, { type: "SNAPSHOT_LOADED", view, gameChanged: true });
+
+    expect(next.view).toBe(view);
+    expect(next.events).toEqual([]);
+    expect(next.standings).toBeNull();
+    expect(next.failure).toBeNull();
+  });
+
+  it("a resync snapshot for the same game keeps the log it already has", () => {
+    const started: SessionEvent = {
+      type: "GAME_STARTED",
+      view: makeView(),
+      seatNames: ["Ana"],
+    };
+    const previous = gameReducer(initialGameState, started);
+    const view = makeView();
+
+    const next = gameReducer(previous, { type: "SNAPSHOT_LOADED", view, gameChanged: false });
+
+    expect(next.view).toBe(view);
+    expect(next.events).toEqual([started]);
   });
 });

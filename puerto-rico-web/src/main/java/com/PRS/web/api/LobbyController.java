@@ -85,17 +85,25 @@ public class LobbyController implements LobbyApi {
   @Override
   public ResponseEntity<GameTableSummary> startGame(String gameId, StartRequest startRequest) {
     GameId id = parseId(gameId);
-    long seed =
-        startRequest == null
-            ? ThreadLocalRandom.current().nextLong()
-            : startRequest.getSeed().orElse(ThreadLocalRandom.current().nextLong());
-
-    StartOutcome outcome = lobby.start(id, seed, List.of(eventStream.listenerFor(id)));
+    StartOutcome outcome =
+        lobby.start(id, seedOrRandom(startRequest), List.of(eventStream.listenerFor(id)));
     return switch (outcome) {
       case StartOutcome.Started started ->
           ResponseEntity.ok(LobbyMapper.toWire(lobby.find(id).orElseThrow()));
       case StartOutcome.Rejected rejected -> throw toApiException(rejected.reason());
     };
+  }
+
+  /**
+   * The caller's seed, or a fresh random one. {@code seed} is a {@link
+   * org.openapitools.jackson.nullable.JsonNullable}, so an explicit JSON {@code null} arrives
+   * <em>present</em> holding null — only an omitted field is {@code undefined}. Both mean "pick one
+   * for me" here, so present-and-null is treated exactly like absent rather than unboxed into an
+   * NPE.
+   */
+  private static long seedOrRandom(StartRequest startRequest) {
+    Long seed = startRequest == null ? null : startRequest.getSeed().orElse(null);
+    return seed == null ? ThreadLocalRandom.current().nextLong() : seed;
   }
 
   private Actor buildAiActor(SeatRequest seatRequest) {

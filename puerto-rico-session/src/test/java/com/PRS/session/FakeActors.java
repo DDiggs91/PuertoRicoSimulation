@@ -3,9 +3,6 @@ package com.PRS.session;
 import com.PRS.model.actions.PlayerAction;
 import com.PRS.session.actors.Actor;
 import com.PRS.session.actors.Decision;
-import java.util.ArrayDeque;
-import java.util.Deque;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /** Actor stand-ins for session tests: no real strategy, just controllable answers. */
@@ -24,26 +21,6 @@ final class FakeActors {
       @Override
       public CompletableFuture<PlayerAction> decide(Decision decision) {
         return CompletableFuture.completedFuture(decision.options().getFirst());
-      }
-    };
-  }
-
-  /** Answers with a fixed sequence of actions, one per call; fails loudly once exhausted. */
-  static Actor scripted(String name, PlayerAction... actions) {
-    Deque<PlayerAction> queue = new ArrayDeque<>(List.of(actions));
-    return new Actor() {
-      @Override
-      public String name() {
-        return name;
-      }
-
-      @Override
-      public CompletableFuture<PlayerAction> decide(Decision decision) {
-        if (queue.isEmpty()) {
-          return CompletableFuture.failedFuture(
-              new IllegalStateException("scripted actor %s ran out of actions".formatted(name)));
-        }
-        return CompletableFuture.completedFuture(queue.removeFirst());
       }
     };
   }
@@ -136,6 +113,7 @@ final class FakeActors {
       case PlayerAction.PassTrading a -> new PlayerAction.PassTrading(wrongSeat);
       case PlayerAction.LoadShip a -> new PlayerAction.LoadShip(wrongSeat, a.shipIndex(), a.good());
       case PlayerAction.LoadWharf a -> new PlayerAction.LoadWharf(wrongSeat, a.good());
+      case PlayerAction.DeclineWharf a -> new PlayerAction.DeclineWharf(wrongSeat);
       case PlayerAction.StoreGoods a ->
           new PlayerAction.StoreGoods(wrongSeat, a.warehouseKinds(), a.singleBarrel());
     };

@@ -28,6 +28,13 @@
             <groupId>com.PRS</groupId>
             <artifactId>puerto-rico-frontend</artifactId>
         </dependency>
+        <!-- The one module that is a web application. Declared here rather than inherited by every
+             module, which used to put Spring MVC and Tomcat on the pure-domain modules' classpath
+             (and in their jars) too. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
         <!-- The generated controller interfaces use @Valid @RequestBody throughout; without a
              provider on the classpath, bean validation silently no-ops instead of rejecting
              malformed requests. -->

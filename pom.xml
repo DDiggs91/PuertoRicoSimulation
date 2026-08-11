@@ -19,7 +19,6 @@
     </modules>
     <properties>
         <lombok.version>1.18.46</lombok.version>
-        <slf4j.version>2.0.12</slf4j.version>
         <testng.version>7.12.0</testng.version>
         <fmt.plugin.version>2.29</fmt.plugin.version>
         <mvn.compiler.plugin.version>3.13.0</mvn.compiler.plugin.version>
@@ -103,10 +102,13 @@
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
+        <!-- spring-boot-starter-web is deliberately NOT here: inheriting it put Spring MVC and
+             Tomcat on the compile classpath of every module, including the pure-domain ones whose
+             READMEs promise no knowledge of the web layer. Modules that need it — puerto-rico-web,
+             and puerto-rico-contract for the interfaces it generates — declare it themselves, as
+             does the one module that only wanted slf4j out of it. -->
+        <!-- Test scope, so it reaches no jar. This is what supplies AssertJ, Mockito and JUnit 5
+             everywhere, which every module's tests use. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

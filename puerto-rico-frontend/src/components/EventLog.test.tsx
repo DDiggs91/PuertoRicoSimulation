@@ -6,7 +6,11 @@ import { describeEvent, EventLog } from "./EventLog";
 
 describe("describeEvent", () => {
   it("describes GAME_STARTED", () => {
-    const text = describeEvent({ type: "GAME_STARTED", view: makeView(), seatNames: ["Ana", "Bo"] });
+    const text = describeEvent({
+      type: "GAME_STARTED",
+      view: makeView(),
+      seatNames: ["Ana", "Bo"],
+    });
     expect(text).toContain("Ana");
     expect(text).toContain("Bo");
   });

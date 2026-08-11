@@ -4,10 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.PRS.model.TestGames;
 import com.PRS.model.actions.PlayerAction;
+import com.PRS.model.boards.CargoShip;
+import com.PRS.model.boards.PlayerState;
 import com.PRS.model.boards.TileType;
 import com.PRS.model.buildings.BuildingType;
 import com.PRS.model.game.GameState;
 import com.PRS.model.game.Phase;
+import com.PRS.model.game.SetupTable;
 import com.PRS.model.goods.Good;
 import com.PRS.model.rolecards.Role;
 import com.PRS.model.scoring.ScoreBreakdown;
@@ -35,8 +38,50 @@ public class GameEngineContractTest {
           .as("a live game always offers a move, phase %s", state.phase())
           .isNotEmpty();
       state = TestGames.apply(state, RandomPlay.choose(legal, random));
+      assertComponentsAreConserved(state);
     }
     return state;
+  }
+
+  // --- conservation ---
+
+  /**
+   * The game's most basic invariant: components are moved, never created or destroyed. Asserted
+   * after every step of the random-play loops, which is the only place that covers enough of the
+   * rules to catch a leak on an uncommon path.
+   */
+  private static void assertComponentsAreConserved(GameState state) {
+    assertBarrelsAreConserved(state);
+    assertColonistsAreConserved(state);
+  }
+
+  /**
+   * Every barrel is in the supply, on a player's board, in a ship's hold, or at the trading house.
+   */
+  private static void assertBarrelsAreConserved(GameState state) {
+    for (Good good : Good.values()) {
+      int onBoards = state.players().stream().mapToInt(player -> player.goodsCount(good)).sum();
+      int atSea =
+          state.ships().stream()
+              .filter(ship -> ship.cargo() == good)
+              .mapToInt(CargoShip::loaded)
+              .sum();
+      int atTheTradingHouse =
+          (int) state.tradingHouse().goods().stream().filter(g -> g == good).count();
+
+      assertThat(state.goods().available(good) + onBoards + atSea + atTheTradingHouse)
+          .as("%s barrels accounted for in %s", good, state.phase())
+          .isEqualTo(good.barrelSupply());
+    }
+  }
+
+  /** Every colonist is in the supply, on the colonist ship, or on a board — San Juan included. */
+  private static void assertColonistsAreConserved(GameState state) {
+    int onBoards = state.players().stream().mapToInt(PlayerState::totalColonists).sum();
+
+    assertThat(state.colonistSupply() + state.colonistsOnShip() + onBoards)
+        .as("colonists accounted for in %s", state.phase())
+        .isEqualTo(SetupTable.colonistSupply(state.playerCount()));
   }
 
   @Test(dataProvider = "playerCounts")
@@ -93,6 +138,7 @@ public class GameEngineContractTest {
             .isInstanceOf(ActionResult.Accepted.class);
       }
       state = TestGames.apply(state, RandomPlay.choose(legal, random));
+      assertComponentsAreConserved(state);
     }
   }
 

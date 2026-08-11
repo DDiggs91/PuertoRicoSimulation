@@ -6,7 +6,16 @@ export interface EventLogProps {
 
 export function EventLog({ events }: EventLogProps) {
   return (
-    <ul data-testid="event-log" aria-live="polite">
+    // role="log" with aria-relevant="additions" tells a screen reader this is an append-only feed
+    // and to announce only what is new. A bare aria-live list re-reads the whole thing, which for a
+    // game log hundreds of entries long is unusable.
+    <ul
+      data-testid="event-log"
+      role="log"
+      aria-label="Event log"
+      aria-live="polite"
+      aria-relevant="additions"
+    >
       {events.map((event, index) => (
         <li key={index} data-testid="event-log-entry">
           {describeEvent(event)}

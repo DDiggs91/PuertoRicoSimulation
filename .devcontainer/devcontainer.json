@@ -42,7 +42,6 @@
                 "redhat.vscode-yaml",
                 "vmware.vscode-boot-dev-pack",
                 "vmware.vscode-spring-boot",
-                "vscjava.vscode-gradle",
                 "vscjava.vscode-java-debug",
                 "vscjava.vscode-java-dependency",
                 "vscjava.vscode-java-pack", // Extension pack for Java (Debugger, Maven/Gradle support, Language Support)

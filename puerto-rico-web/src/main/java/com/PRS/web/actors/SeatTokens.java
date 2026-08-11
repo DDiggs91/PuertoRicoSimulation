@@ -29,4 +29,21 @@ public final class SeatTokens {
     SeatRef ref = tokens.get(token);
     return ref != null && ref.equals(new SeatRef(gameId, seat));
   }
+
+  /**
+   * Forgets every token minted for a game, called when its table is evicted. Tokens are keyed by
+   * the token itself — the lookup {@link #isValid} needs — so this is a scan of the values rather
+   * than a single removal; the map only ever holds one entry per human seat, so it stays cheap.
+   *
+   * @return how many tokens were dropped
+   */
+  public int evict(GameId gameId) {
+    int before = tokens.size();
+    tokens.values().removeIf(ref -> ref.gameId().equals(gameId));
+    return before - tokens.size();
+  }
+
+  int size() {
+    return tokens.size();
+  }
 }

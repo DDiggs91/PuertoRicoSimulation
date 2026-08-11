@@ -12,6 +12,13 @@
     <artifactId>puerto-rico-contract</artifactId>
 
     <dependencies>
+        <!-- The "spring" generator emits @RestController/ResponseEntity API interfaces, so the
+             generated sources need Spring Web on the compile classpath. Declared here now that the
+             root POM no longer hands it to every module. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
         <!-- Both pulled in by the classes openapi-generator emits below; declared here
              (rather than left to spring-boot-starter-web) so puerto-rico-web gets them
              transitively along with the generated interfaces that need them. -->

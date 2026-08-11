@@ -6,6 +6,7 @@ class FakeEventSource {
   static instances: FakeEventSource[] = [];
   url: string;
   onmessage: ((event: { data: string }) => void) | null = null;
+  onerror: (() => void) | null = null;
   closed = false;
 
   constructor(url: string) {
@@ -15,6 +16,14 @@ class FakeEventSource {
 
   emit(data: unknown) {
     this.onmessage?.({ data: JSON.stringify(data) });
+  }
+
+  emitRaw(data: string) {
+    this.onmessage?.({ data });
+  }
+
+  fail() {
+    this.onerror?.();
   }
 
   close() {
@@ -59,5 +68,48 @@ describe("subscribeToGameEvents", () => {
     unsubscribe();
 
     expect(FakeEventSource.instances[0]?.closed).toBe(true);
+  });
+
+  /**
+   * EventSource reconnects on its own, but events emitted during the gap are gone — nothing
+   * replays them — so the caller has to be told in order to re-fetch /state.
+   */
+  it("reports a dropped connection and its recovery", () => {
+    const changes: boolean[] = [];
+    subscribeToGameEvents("abc-123", {
+      onEvent: () => {},
+      onConnectionChange: (connected) => changes.push(connected),
+    });
+    const source = FakeEventSource.instances[0]!;
+
+    source.fail();
+    source.emit({ type: "GAME_STARTED", seatNames: [] });
+
+    expect(changes).toEqual([false, true]);
+  });
+
+  it("does not report the same connection state twice", () => {
+    const changes: boolean[] = [];
+    subscribeToGameEvents("abc-123", {
+      onEvent: () => {},
+      onConnectionChange: (connected) => changes.push(connected),
+    });
+    const source = FakeEventSource.instances[0]!;
+
+    source.fail();
+    source.fail();
+
+    expect(changes).toEqual([false]);
+  });
+
+  it("survives a frame it cannot parse", () => {
+    const received: SessionEvent[] = [];
+    subscribeToGameEvents("abc-123", (event) => received.push(event));
+    const source = FakeEventSource.instances[0]!;
+
+    source.emitRaw("not json");
+    source.emit({ type: "GAME_STARTED", seatNames: ["Ana"] });
+
+    expect(received).toHaveLength(1);
   });
 });

@@ -56,10 +56,15 @@ The module splits in two to address all three:
   `standings()`) is a lock-free read of one immutable snapshot, so HTTP
   threads never block on game logic.
 - **`SessionRunner`** — a thin driver that asks the actor at the head of
-  the queue for a decision and, no matter how that future completes,
-  re-posts the next step to a single-threaded executor rather than
-  chaining inline. That's what keeps an all-AI game off the call stack:
-  every step is an independent executor task, not a nested frame.
+  the queue for a decision and hands the result off with
+  `answer.whenCompleteAsync(..., executor)`. That single call is the
+  trampoline and the only thing bounding stack depth. `onAnswer` and
+  `handleFailure` do call `step()` **directly**; what keeps an all-AI game
+  off the call stack is that `step()` ends at `whenCompleteAsync`, which
+  queues onto the executor instead of running inline even when the future
+  is already complete — so the stack unwinds once per decision. Weakening
+  that to `whenComplete`, or "fixing" the direct `step()` calls without
+  understanding this, reintroduces the overflow.
 
 ## Packages
 
@@ -109,7 +114,7 @@ a timeout safe later without changing the contract.
 ## Testing
 
 TestNG with AssertJ assertions. `FakeActors` (test-only) supplies actor
-stand-ins — `firstLegal` (the simplest possible AI), `scripted`, `failing`,
+stand-ins — `firstLegal` (the simplest possible AI), `failing`,
 `illegal`, and `deferred` (a controllable stand-in for a human, answered
 by test code rather than a network).
 

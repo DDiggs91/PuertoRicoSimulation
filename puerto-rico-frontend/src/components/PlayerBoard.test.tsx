@@ -54,4 +54,49 @@ describe("PlayerBoard", () => {
     expect(screen.getByTestId("player-0-island-count")).toHaveTextContent("2");
     expect(screen.getByTestId("player-0-building-count")).toHaveTextContent("1");
   });
+
+  it("lists each island tile with whether it is staffed", () => {
+    const player = makePlayer({
+      seat: 0,
+      island: [
+        { type: "CORN", occupied: true },
+        { type: "QUARRY", occupied: false },
+      ],
+    });
+
+    render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
+
+    const tiles = screen.getAllByTestId("player-0-island-tile");
+    expect(tiles).toHaveLength(2);
+    expect(tiles[0]).toHaveTextContent("CORN");
+    expect(tiles[0]).toHaveAttribute("data-occupied", "true");
+    expect(tiles[1]).toHaveTextContent("QUARRY");
+    expect(tiles[1]).toHaveAttribute("data-occupied", "false");
+  });
+
+  it("lists each building with how many colonists are on it", () => {
+    const player = makePlayer({
+      seat: 1,
+      buildings: [
+        { type: "SMALL_MARKET", colonists: 1 },
+        { type: "WHARF", colonists: 0 },
+      ],
+    });
+
+    render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
+
+    const buildings = screen.getAllByTestId("player-1-building");
+    expect(buildings[0]).toHaveTextContent("SMALL_MARKET — 1 colonist");
+    expect(buildings[1]).toHaveTextContent("WHARF — 0 colonists");
+  });
+
+  it("lists goods held, in trading-house order, omitting kinds held none of", () => {
+    const player = makePlayer({ seat: 2, goods: { COFFEE: 2, CORN: 3, SUGAR: 0 } });
+
+    render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
+
+    const goods = screen.getByTestId("player-2-goods");
+    expect(goods.textContent).toBe("CORN × 3COFFEE × 2");
+    expect(screen.queryByTestId("player-2-good-SUGAR")).not.toBeInTheDocument();
+  });
 });

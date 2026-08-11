@@ -34,15 +34,18 @@ directly off disk.
 
 ## Project layout
 
-| Path | Holds |
-|---|---|
-| `src/api/schema.d.ts` | **Generated**, gitignored — run `npm run generate:api` |
-| `src/api/types.ts` | Hand-written union aliases for `PlayerAction`/`SessionEvent` (see below) plus re-exports of the rest |
-| `src/api/client.ts` | The configured `openapi-fetch` client, plus `unwrap`/`ApiError` |
-| `src/api/events.ts` | `EventSource` subscription → typed `SessionEvent` |
-| `src/state/gameReducer.ts` | Pure `(state, event) => state` — the event-sourced UI state |
-| `src/components/` | `LobbyScreen`, `GameBoard`, `PlayerBoard`, `EventLog` |
-| `e2e/` | Playwright specs |
+| Path                       | Holds                                                                                                |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `src/api/schema.d.ts`      | **Generated**, gitignored — run `npm run generate:api`                                               |
+| `src/api/types.ts`         | Hand-written union aliases for `PlayerAction`/`SessionEvent` (see below) plus re-exports of the rest |
+| `src/api/client.ts`        | The configured `openapi-fetch` client, plus `unwrap`/`ApiError`                                      |
+| `src/api/events.ts`        | `EventSource` subscription → typed `SessionEvent`                                                    |
+| `src/state/gameReducer.ts` | Pure `(state, event) => state` — the event-sourced UI state                                          |
+| `src/components/`          | `LobbyScreen`, `GameBoard`, `CentralBoard`, `PlayerBoard`, `EventLog`                                |
+| `src/App.tsx`              | `?game=` routing, the `/state` bootstrap and resync, and the SSE subscription lifecycle              |
+| `src/main.tsx`             | The React entry point — mounts `App` and nothing else                                                |
+| `src/test/`                | `setup.ts` (jest-dom matchers) and `fixtures.ts` (minimal-but-valid `GameStateView` builders)        |
+| `e2e/`                     | Playwright specs                                                                                     |
 
 ## Design notes
 
@@ -53,7 +56,7 @@ it would from a spec using `oneOf` instead of `allOf` + `discriminator`
 (the shape `puerto-rico-contract`'s spec deliberately uses instead, since
 it's what the Java generator handles most reliably — see that module's
 README). `src/api/types.ts` closes that one gap with a hand-written union
-alias per hierarchy. Nothing about a variant's *shape* is hand-maintained,
+alias per hierarchy. Nothing about a variant's _shape_ is hand-maintained,
 only the grouping.
 
 **`openapi-fetch` needs an absolute `baseUrl`, not `/api`.** It builds a

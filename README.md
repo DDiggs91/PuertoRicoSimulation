@@ -77,8 +77,9 @@ section.
 ├── .devcontainer/           # Dev container (Temurin 25 + Maven + Node)
 ├── .github/workflows/       # CI
 ├── docs/
-│   ├── architecture.md      # Component/module architecture outline
-│   └── game-rules.md        # Puerto Rico rules reference for implementers
+│   ├── architecture.md      # How the modules fit together
+│   ├── game-rules.md        # Puerto Rico rules reference for implementers
+│   └── puerto-rico-rules-en.pdf  # The official rulebook game-rules.md derives from
 ├── puerto-rico-model/       # Maven module — Game Engine (Rules Core)
 ├── puerto-rico-session/     # Maven module — Game Session (Orchestrator)
 ├── puerto-rico-ai/          # Maven module — AI Engine Plugins
@@ -86,6 +87,7 @@ section.
 ├── puerto-rico-contract/    # Maven module — Wire Contract (OpenAPI)
 ├── puerto-rico-web/         # Maven module — Web/API Layer (Spring Boot app)
 ├── puerto-rico-frontend/    # Maven module — Web Frontend (React browser client)
+├── .dockerignore            # Keeps the widened devcontainer build context small
 ├── CLAUDE.md                # Guidance for AI-assisted development
 ├── LICENSE
 ├── pom.xml                  # Parent/reactor POM

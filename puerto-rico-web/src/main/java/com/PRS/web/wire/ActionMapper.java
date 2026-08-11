@@ -2,6 +2,7 @@ package com.PRS.web.wire;
 
 import com.PRS.contract.model.BuildBuildingAction;
 import com.PRS.contract.model.ColonistSlot;
+import com.PRS.contract.model.DeclineWharfAction;
 import com.PRS.contract.model.EndColonistPlacementAction;
 import com.PRS.contract.model.LoadShipAction;
 import com.PRS.contract.model.LoadWharfAction;
@@ -119,6 +120,11 @@ public final class ActionMapper {
         wire.setGood(toWire(a.good()));
         yield wire;
       }
+      case PlayerAction.DeclineWharf a -> {
+        DeclineWharfAction wire = new DeclineWharfAction();
+        wire.setSeat(a.seat());
+        yield wire;
+      }
       case PlayerAction.StoreGoods a -> {
         StoreGoodsAction wire = new StoreGoodsAction();
         wire.setSeat(a.seat());
@@ -152,6 +158,7 @@ public final class ActionMapper {
       case LoadShipAction a ->
           new PlayerAction.LoadShip(a.getSeat(), a.getShipIndex(), toModel(a.getGood()));
       case LoadWharfAction a -> new PlayerAction.LoadWharf(a.getSeat(), toModel(a.getGood()));
+      case DeclineWharfAction a -> new PlayerAction.DeclineWharf(a.getSeat());
       case StoreGoodsAction a -> {
         com.PRS.contract.model.Good singleBarrel = a.getSingleBarrel().orElse(null);
         yield new PlayerAction.StoreGoods(

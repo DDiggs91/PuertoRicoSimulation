@@ -71,6 +71,13 @@ public sealed interface PlayerAction {
   record LoadWharf(int seat, Good good) implements PlayerAction {}
 
   /**
+   * Decline to use the Wharf and end this turn. Using the Wharf is optional even though loading is
+   * otherwise compulsory, so this is offered only when the Wharf is the owner's sole remaining
+   * option — a player who could still load a cargo ship must.
+   */
+  record DeclineWharf(int seat) implements PlayerAction {}
+
+  /**
    * Choose what survives the end of the captain phase: whole kinds covered by warehouses, plus a
    * single loose barrel. Everything else goes back to the supply.
    */

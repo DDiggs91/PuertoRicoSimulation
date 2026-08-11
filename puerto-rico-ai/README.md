@@ -52,8 +52,8 @@ same code, not two implementations that happen to agree today.
 
 **`thinkTime` paces the game, not the selection.** A zero-delay AI resolves
 a full game in milliseconds — fine for tests, useless for a spectator
-trying to watch one. `RandomAi` schedules its answer via {@code
-CompletableFuture.delayedExecutor} rather than sleeping the calling thread,
+trying to watch one. `RandomAi` schedules its answer via
+`CompletableFuture.delayedExecutor` rather than sleeping the calling thread,
 so a slow-thinking AI never blocks anything while it "thinks." Tests
 construct engines with `Duration.ZERO`; `puerto-rico-web` seats them with a
 few hundred milliseconds.

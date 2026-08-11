@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.PRS.model.actions.PlayerAction;
 import com.PRS.model.engine.RejectionReason;
+import com.PRS.model.game.GameState;
 import com.PRS.model.scoring.ScoreBreakdown;
 import com.PRS.session.actors.ActorKind;
 import com.PRS.session.actors.Decision;
 import com.PRS.session.actors.SeatedActor;
+import com.PRS.session.events.SessionEvent;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.testng.annotations.Test;
@@ -143,5 +145,46 @@ public class GameSessionTest {
     assertThat(outcome).isInstanceOf(SubmitOutcome.Refused.class);
     assertThat(((SubmitOutcome.Refused) outcome).reason()).isEqualTo(RejectionReason.GAME_OVER);
     assertThat(session.pendingDecision()).isNull();
+  }
+
+  /**
+   * A repeat {@code start()} used to re-announce the game and bump the request id, invalidating the
+   * outstanding decision and stranding whoever was answering it.
+   */
+  @Test
+  public void aSecondStartIsANoOpAndLeavesThePendingDecisionAnswerable() {
+    GameSession session = newSession("Ana", "Bo", "Coco");
+    Decision before = session.pendingDecision();
+    List<SessionEvent> seen = new java.util.ArrayList<>();
+    session.addListener(seen::add);
+
+    session.start();
+
+    assertThat(seen).isEmpty();
+    assertThat(session.pendingDecision().requestId()).isEqualTo(before.requestId());
+    assertThat(session.submit(before.seat(), before.requestId(), before.options().getFirst()))
+        .isInstanceOf(SubmitOutcome.Applied.class);
+  }
+
+  /**
+   * Listeners run inline on this thread, so a client that reacts to ACTION_APPLIED by re-reading
+   * {@code state()} must not be handed the board from before the action it was just told about.
+   */
+  @Test
+  public void stateAlreadyReflectsTheActionWhenActionAppliedIsBroadcast() {
+    GameSession session = newSession("Ana", "Bo", "Coco");
+    List<GameState> observed = new java.util.ArrayList<>();
+    session.addListener(
+        event -> {
+          if (event instanceof SessionEvent.ActionApplied) {
+            observed.add(session.state());
+          }
+        });
+
+    Decision decision = session.pendingDecision();
+    session.submit(decision.seat(), decision.requestId(), decision.options().getFirst());
+
+    assertThat(observed).hasSize(1);
+    assertThat(observed.getFirst().phase()).isEqualTo(session.state().phase());
   }
 }

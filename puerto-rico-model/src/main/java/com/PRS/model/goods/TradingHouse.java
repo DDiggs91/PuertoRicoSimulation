@@ -33,8 +33,15 @@ public record TradingHouse(List<Good> goods) {
     return new TradingHouse(next);
   }
 
+  /**
+   * The house after a clear, plus the barrels that came off it. Sold barrels belong to the game,
+   * not to the buyer, so they go back to the {@link GoodsSupply} — returning them here rather than
+   * emptying in place makes the caller account for them explicitly.
+   */
+  public record Clearing(TradingHouse house, List<Good> returned) {}
+
   /** Cleared by the trader at the end of the phase, but only when all four slots are filled. */
-  public TradingHouse clearIfFull() {
-    return isFull() ? empty() : this;
+  public Clearing clearIfFull() {
+    return isFull() ? new Clearing(empty(), goods) : new Clearing(this, List.of());
   }
 }

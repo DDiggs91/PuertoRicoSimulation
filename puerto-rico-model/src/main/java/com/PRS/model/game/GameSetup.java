@@ -36,7 +36,9 @@ public final class GameSetup {
         .players(players)
         .governorSeat(0)
         .roles(RoleTrack.forPlayerCount(playerCount))
-        .tiles(TileSupply.create(playerCount, config.seed()))
+        .tiles(
+            TileSupply.create(config.seed())
+                .refillFaceUp(SetupTable.faceUpPlantations(playerCount)))
         .goods(GoodsSupply.full())
         .buildings(BuildingSupply.full())
         .tradingHouse(TradingHouse.empty())

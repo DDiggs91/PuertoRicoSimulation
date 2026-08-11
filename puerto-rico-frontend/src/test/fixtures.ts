@@ -19,7 +19,11 @@ export function makePlayer(overrides: Partial<PlayerStateView> = {}): PlayerStat
 export function makeState(overrides: Partial<GameStateView> = {}): GameStateView {
   return {
     config: { playerNames: ["Ana", "Bo", "Coco"] },
-    players: [makePlayer({ seat: 0, name: "Ana" }), makePlayer({ seat: 1, name: "Bo" }), makePlayer({ seat: 2, name: "Coco" })],
+    players: [
+      makePlayer({ seat: 0, name: "Ana" }),
+      makePlayer({ seat: 1, name: "Bo" }),
+      makePlayer({ seat: 2, name: "Coco" }),
+    ],
     governorSeat: 0,
     roles: { cards: [] },
     tiles: { faceUp: [], quarriesRemaining: 8, faceDownCount: 42, discardedCount: 0 },

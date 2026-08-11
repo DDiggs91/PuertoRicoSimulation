@@ -1,6 +1,7 @@
 package com.PRS.web.wire;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.PRS.contract.model.ActionAppliedEvent;
 import com.PRS.contract.model.ActionRejectedEvent;
@@ -26,9 +27,11 @@ import com.PRS.session.actors.ActorKind;
 import com.PRS.session.actors.Decision;
 import com.PRS.session.events.SessionEvent;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class WireMappingTest {
@@ -64,6 +67,7 @@ class WireMappingTest {
         new PlayerAction.PassTrading(2),
         new PlayerAction.LoadShip(0, 1, Good.INDIGO),
         new PlayerAction.LoadWharf(1, Good.TOBACCO),
+        new PlayerAction.DeclineWharf(2),
         new PlayerAction.StoreGoods(2, List.of(Good.CORN, Good.COFFEE), Good.SUGAR),
         new PlayerAction.StoreGoods(0, List.of(), null));
   }
@@ -141,6 +145,86 @@ class WireMappingTest {
     assertThat(wire.getChooserSeat().orElse(null)).isEqualTo(governor);
     assertThat(wire.getQueue().orElse(List.of())).isNotEmpty();
     assertThat(wire.getHaciendaOffered().isPresent()).isTrue();
+  }
+
+  /**
+   * Every {@code Phase} variant, not just the two a fresh game passes through. The mapper is a
+   * switch over a sealed interface, so an unmapped variant is a compile error — what this covers is
+   * the per-variant field sets, which nothing else touches.
+   */
+  static Stream<Arguments> allPhaseVariants() {
+    return Stream.of(
+        arguments(new com.PRS.model.game.Phase.RoleSelection(0), Phase.TypeEnum.ROLE_SELECTION, 0),
+        arguments(
+            new com.PRS.model.game.Phase.SettlerPhase(1, List.of(2, 0), true),
+            Phase.TypeEnum.SETTLER,
+            2),
+        arguments(
+            new com.PRS.model.game.Phase.MayorPhase(0, List.of(1, 2)), Phase.TypeEnum.MAYOR, 1),
+        arguments(
+            new com.PRS.model.game.Phase.BuilderPhase(2, List.of(0, 1)), Phase.TypeEnum.BUILDER, 0),
+        arguments(
+            new com.PRS.model.game.Phase.CraftsmanBonus(1, Set.of(Good.CORN, Good.INDIGO)),
+            Phase.TypeEnum.CRAFTSMAN_BONUS,
+            1),
+        arguments(
+            new com.PRS.model.game.Phase.TraderPhase(2, List.of(2, 0, 1)),
+            Phase.TypeEnum.TRADER,
+            2),
+        arguments(
+            new com.PRS.model.game.Phase.CaptainLoading(0, 1, Set.of(2), true),
+            Phase.TypeEnum.CAPTAIN_LOADING,
+            1),
+        arguments(
+            new com.PRS.model.game.Phase.CaptainStorage(1, List.of(0, 2)),
+            Phase.TypeEnum.CAPTAIN_STORAGE,
+            0),
+        arguments(new com.PRS.model.game.Phase.GameOver(), Phase.TypeEnum.GAME_OVER, -1));
+  }
+
+  @ParameterizedTest
+  @MethodSource("allPhaseVariants")
+  void everyPhaseVariantMapsItsTypeAndActorSeat(
+      com.PRS.model.game.Phase phase, Phase.TypeEnum expectedType, int expectedActorSeat) {
+    Phase wire = phaseOnTheWire(phase);
+
+    assertThat(wire.getType()).isEqualTo(expectedType);
+    assertThat(wire.getActorSeat()).isEqualTo(expectedActorSeat);
+  }
+
+  @Test
+  void craftsmanBonusCarriesItsOptionsAsActions() {
+    Phase wire =
+        phaseOnTheWire(
+            new com.PRS.model.game.Phase.CraftsmanBonus(1, Set.of(Good.CORN, Good.COFFEE)));
+
+    assertThat(wire.getChooserSeat().orElse(null)).isEqualTo(1);
+    assertThat(wire.getCraftsmanOptions().orElse(List.of())).hasSize(2);
+    assertThat(wire.getQueue().orElse(List.of())).isEmpty();
+  }
+
+  @Test
+  void captainLoadingCarriesTheOncePerPhasePrivileges() {
+    Phase wire =
+        phaseOnTheWire(new com.PRS.model.game.Phase.CaptainLoading(0, 2, Set.of(1, 2), true));
+
+    assertThat(wire.getChooserSeat().orElse(null)).isEqualTo(0);
+    assertThat(wire.getWharfUsed().orElse(List.of())).containsExactlyInAnyOrder(1, 2);
+    assertThat(wire.getBonusUsed().orElse(null)).isTrue();
+  }
+
+  @Test
+  void gameOverCarriesNoPhaseSpecificFields() {
+    Phase wire = phaseOnTheWire(new com.PRS.model.game.Phase.GameOver());
+
+    assertThat(wire.getChooserSeat().isPresent()).isFalse();
+    assertThat(wire.getQueue().orElse(List.of())).isEmpty();
+    assertThat(wire.getCraftsmanOptions().orElse(List.of())).isEmpty();
+  }
+
+  private static Phase phaseOnTheWire(com.PRS.model.game.Phase phase) {
+    GameState state = newGame().withPhase(phase);
+    return GameMapper.toWire(com.PRS.session.view.GameView.of(state, null)).getState().getPhase();
   }
 
   @Test

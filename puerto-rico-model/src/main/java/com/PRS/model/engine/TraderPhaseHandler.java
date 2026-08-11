@@ -6,6 +6,8 @@ import com.PRS.model.buildings.BuildingType;
 import com.PRS.model.game.GameState;
 import com.PRS.model.game.Phase;
 import com.PRS.model.goods.Good;
+import com.PRS.model.goods.GoodsSupply;
+import com.PRS.model.goods.TradingHouse;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -85,8 +87,14 @@ final class TraderPhaseHandler {
     if (rest != null && !state.tradingHouse().isFull()) {
       return state.withPhase(new Phase.TraderPhase(phase.chooserSeat(), rest));
     }
-    // The trader's last duty: clear the house, but only when all four slots are filled.
+    // The trader's last duty: clear the house, but only when all four slots are filled. The barrels
+    // that come off go back to the supply — a sale moves a barrel, it does not consume one.
+    TradingHouse.Clearing clearing = state.tradingHouse().clearIfFull();
+    GoodsSupply supply = state.goods();
+    for (Good returned : clearing.returned()) {
+      supply = supply.put(returned, 1);
+    }
     return PhaseFlow.endRolePhase(
-        state.toBuilder().tradingHouse(state.tradingHouse().clearIfFull()).build());
+        state.toBuilder().tradingHouse(clearing.house()).goods(supply).build());
   }
 }

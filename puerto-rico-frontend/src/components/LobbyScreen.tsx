@@ -3,13 +3,20 @@ import { ApiError, client, unwrap } from "../api/client";
 import type { GameTableSummary } from "../api/types";
 
 export interface LobbyScreenProps {
-  onGameStarted: (gameId: string) => void;
+  /**
+   * Opens a game's spectator view. Called both for a game this tab just started and for one picked
+   * out of the list, which is why it isn't named for starting.
+   */
+  onWatchGame: (gameId: string) => void;
 }
 
 const MAX_SEATS = 5;
 const MIN_SEATS_TO_START = 3;
 
-export function LobbyScreen({ onGameStarted }: LobbyScreenProps) {
+/** Other tabs seat players and start games; without polling none of that is ever visible here. */
+const REFRESH_INTERVAL_MS = 3000;
+
+export function LobbyScreen({ onWatchGame }: LobbyScreenProps) {
   const [games, setGames] = useState<GameTableSummary[]>([]);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +30,9 @@ export function LobbyScreen({ onGameStarted }: LobbyScreenProps) {
   }, []);
 
   useEffect(() => {
-    refreshGames();
+    void refreshGames();
+    const timer = setInterval(() => void refreshGames(), REFRESH_INTERVAL_MS);
+    return () => clearInterval(timer);
   }, [refreshGames]);
 
   const activeGame = games.find((g) => g.id === activeGameId) ?? null;
@@ -61,8 +70,12 @@ export function LobbyScreen({ onGameStarted }: LobbyScreenProps) {
       return;
     }
     try {
-      unwrap(await client.POST("/games/{gameId}/start", { params: { path: { gameId: activeGameId } } }));
-      onGameStarted(activeGameId);
+      unwrap(
+        await client.POST("/games/{gameId}/start", {
+          params: { path: { gameId: activeGameId } },
+        }),
+      );
+      onWatchGame(activeGameId);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Failed to start the game.");
     }
@@ -79,7 +92,21 @@ export function LobbyScreen({ onGameStarted }: LobbyScreenProps) {
       <ul data-testid="game-list" aria-label="Games">
         {games.map((game) => (
           <li key={game.id} data-testid={`game-list-item-${game.id}`}>
-            {game.id} — {game.status} — {game.seats.length} seated
+            {/* A started game is watchable by anyone; before this the only way in was to be handed
+                its ?game= URL by whoever created it. */}
+            {game.status === "OPEN" ? (
+              <span>
+                {game.id} — {game.status} — {game.seats.length} seated
+              </span>
+            ) : (
+              <button
+                type="button"
+                data-testid={`watch-game-${game.id}`}
+                onClick={() => onWatchGame(game.id)}
+              >
+                Watch {game.id} — {game.status} — {game.seats.length} seated
+              </button>
+            )}
           </li>
         ))}
       </ul>

@@ -43,17 +43,23 @@ copy or documentation — don't imply official affiliation or endorsement.
   `puerto-rico-web`, and `puerto-rico-frontend`. Each child declares its own
   internal dependencies on the others it needs (see their `pom.xml`s); the
   root POM pins their versions via `dependencyManagement`.
-  `puerto-rico-model` itself still declares nothing beyond
-  `parent`/`groupId`/`artifactId` — it inherits all third-party
-  dependencies and plugins from the root. Add new third-party
-  dependencies to the root `pom.xml`'s `dependencyManagement`/
-  `dependencies` unless they're genuinely module-specific; internal
-  module-to-module dependencies belong in the child module's own POM.
-  `puerto-rico-model`, `puerto-rico-session`, `puerto-rico-lobby`, and
-  `puerto-rico-ai` each add only TestNG and a surefire provider of their
-  own (see below); everything else they inherit. `puerto-rico-web` uses
-  JUnit 5 instead (see below) and adds `spring-boot-starter-webmvc-test`
-  and `spring-boot-starter-validation`.
+  The root's `<dependencies>` holds only what genuinely belongs everywhere:
+  Lombok (`provided`) and `spring-boot-starter-test` (`test`, which is what
+  supplies AssertJ/Mockito/JUnit 5 to every module). **`spring-boot-starter-web`
+  is deliberately not there** — inheriting it put Spring MVC and Tomcat on the
+  compile classpath and in the jar of every module, including the pure-domain
+  ones whose READMEs promise no knowledge of the web layer. It is declared by
+  `puerto-rico-web` and by `puerto-rico-contract` (whose generated API
+  interfaces need it to compile). Keep it that way: put a new third-party
+  dependency in the root's `dependencyManagement` for version pinning, but
+  declare it in the module that actually uses it.
+  `puerto-rico-model` declares nothing beyond `parent`/`groupId`/`artifactId`
+  plus TestNG and a surefire provider, and its jar has no third-party compile
+  dependencies at all. `puerto-rico-lobby` and `puerto-rico-ai` likewise add
+  only TestNG and the surefire provider; `puerto-rico-session` adds `slf4j-api`
+  (it logs, and no longer gets slf4j via the web starter). `puerto-rico-web`
+  uses JUnit 5 instead (see below) and adds `spring-boot-starter-web`,
+  `spring-boot-starter-webmvc-test`, and `spring-boot-starter-validation`.
   See [docs/architecture.md](docs/architecture.md) for what each module
   is responsible for and how they connect.
 - Spring Boot 4.1.0 — `puerto-rico-web` is the `@SpringBootApplication`
@@ -132,7 +138,9 @@ installed in `.devcontainer/Dockerfile`.
 cd puerto-rico-frontend
 npm run dev            # Vite dev server, proxies /api to localhost:8080
 npm run test:unit      # Vitest + React Testing Library
+npm run test:unit:coverage   # the same suite with a v8 coverage report
 npm run typecheck
+npm run format         # Prettier (runs automatically on every build; rarely needed)
 ../mvnw -pl puerto-rico-web -am package -DskipTests && npm run test:e2e   # Playwright, needs the real jar built first
 ```
 
@@ -163,6 +171,14 @@ verify` does **not** run Playwright — see CI & dependency updates below.
   than a check-and-fail step. Don't hand-format Java code, and don't
   propose switching this to a check/fail mode — it's a deliberate,
   settled choice.
+- The frontend works the same way: Prettier runs via `frontend-maven-plugin`
+  on every build (`npm run format`, before the production build) and rewrites
+  TypeScript to match, rather than failing on a violation. Config lives in
+  `puerto-rico-frontend/.prettierrc.json`; the generated `src/api/schema.d.ts`
+  is in `.prettierignore`. Note Prettier reads `.editorconfig` for indentation
+  when its own config is silent — `.editorconfig` is 2-space for everything
+  except `*.xml`, and `.prettierrc.json` pins `tabWidth: 2` regardless. Don't
+  hand-format TypeScript, and don't switch this to a check/fail mode either.
 - Prefer Lombok annotations over hand-written boilerplate. For the immutable
   records the model is built from, `@Builder(toBuilder = true)` is the one
   that earns its keep — it replaces long chains of `withX` copy methods.
@@ -211,8 +227,10 @@ verify` does **not** run Playwright — see CI & dependency updates below.
   dependency or `.feature` files exist. Treat BDD tooling as anticipated,
   not committed — confirm before adding `cucumber-java`/feature-file
   scaffolding.
-- Likewise the ESLint VS Code extension (`dbaeumer.vscode-eslint`) is
-  installed, but `puerto-rico-frontend` has no ESLint config
-  (`eslint.config.js`) yet — TypeScript's own `strict` compiler settings
-  are what currently catches issues. Confirm before adding an ESLint
-  config or assuming lint rules are enforced anywhere.
+- The ESLint VS Code extension (`dbaeumer.vscode-eslint`) is installed, but
+  `puerto-rico-frontend` has no ESLint config (`eslint.config.js`) and no
+  ESLint dependency. **Formatting** is settled — Prettier, auto-fixing on
+  every build (see Code style) — but **linting** is not: TypeScript's own
+  `strict` compiler settings are all that catches issues beyond formatting.
+  Confirm before adding an ESLint config or assuming lint rules are
+  enforced anywhere.

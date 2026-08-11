@@ -19,9 +19,19 @@ import java.util.Set;
  * Captain phase: shipping, which is the one compulsory action in the game.
  *
  * <p>Turns cycle clockwise for as long as anybody can still load, so players get several turns. A
- * player with nothing loadable is skipped rather than asked to pass — there is no pass action.
+ * player with nothing loadable is skipped rather than asked to pass — loading a cargo ship is
+ * compulsory, so there is no general pass action. The one exception is the Wharf, which the
+ * rulebook makes optional: a player whose only remaining option is the Wharf may decline it with
+ * {@link PlayerAction.DeclineWharf}.
  */
 final class CaptainPhaseHandler {
+
+  /**
+   * docs/game-rules.md §6: "Capacity 11 barrels." No kind has more than 11 barrels in the game, so
+   * this never binds today — it is here so the limit lives in the rules layer rather than being an
+   * accident of {@code Good}'s supply table.
+   */
+  static final int WHARF_CAPACITY = 11;
 
   private CaptainPhaseHandler() {}
 
@@ -91,17 +101,19 @@ final class CaptainPhaseHandler {
         && player.totalGoods() > 0;
   }
 
-  static boolean canLoad(GameState state, Phase.CaptainLoading phase, int seat) {
-    PlayerState player = state.player(seat);
-    if (mayUseWharf(player, phase)) {
-      return true;
-    }
+  /** Whether any cargo ship would take something this player holds — the compulsory part. */
+  static boolean canLoadAShip(GameState state, PlayerState player) {
     for (Good good : Good.values()) {
       if (!candidateShips(state, player, good).isEmpty()) {
         return true;
       }
     }
     return false;
+  }
+
+  static boolean canLoad(GameState state, Phase.CaptainLoading phase, int seat) {
+    PlayerState player = state.player(seat);
+    return mayUseWharf(player, phase) || canLoadAShip(state, player);
   }
 
   static List<PlayerAction> legalActions(GameState state, Phase.CaptainLoading phase) {
@@ -119,6 +131,11 @@ final class CaptainPhaseHandler {
         if (player.goodsCount(good) > 0) {
           actions.add(new PlayerAction.LoadWharf(seat, good));
         }
+      }
+      // The Wharf is optional. When it is the only thing keeping this player at the table, the
+      // turn would otherwise be a forced Wharf use, so declining has to be on the menu.
+      if (actions.stream().allMatch(PlayerAction.LoadWharf.class::isInstance)) {
+        actions.add(new PlayerAction.DeclineWharf(seat));
       }
     }
     return actions;
@@ -167,11 +184,11 @@ final class CaptainPhaseHandler {
               RejectionReason.WHARF_UNAVAILABLE,
               "No occupied Wharf, or it has already been used this phase");
         }
-        int barrels = player.goodsCount(wharf.good());
-        if (barrels == 0) {
+        if (player.goodsCount(wharf.good()) == 0) {
           yield ActionResult.reject(
               RejectionReason.GOOD_NOT_HELD, "No " + wharf.good() + " to ship");
         }
+        int barrels = Math.min(player.goodsCount(wharf.good()), WHARF_CAPACITY);
         // The Wharf sends goods straight back to the supply, scoring as if shipped.
         GameState next =
             state.toBuilder()
@@ -184,6 +201,26 @@ final class CaptainPhaseHandler {
             new Phase.CaptainLoading(
                 phase.chooserSeat(), phase.actorSeat(), wharfUsed, phase.bonusUsed());
         yield ActionResult.accept(scoreAndAdvance(next, used, seat, barrels));
+      }
+      case PlayerAction.DeclineWharf ignored -> {
+        if (canLoadAShip(state, player)) {
+          yield ActionResult.reject(
+              RejectionReason.LOADING_IS_MANDATORY,
+              "A player who can still load a cargo ship must do so");
+        }
+        if (!mayUseWharf(player, phase)) {
+          yield ActionResult.reject(
+              RejectionReason.WHARF_UNAVAILABLE, "There is no Wharf use on offer to decline");
+        }
+        // Declining spends the Wharf for the phase. Ships only unload once the phase is over, so
+        // nothing can make it worth using later, and marking it is what stops the turn coming
+        // straight back round to the same forced choice.
+        Set<Integer> resolved = new HashSet<>(phase.wharfUsed());
+        resolved.add(seat);
+        Phase.CaptainLoading declined =
+            new Phase.CaptainLoading(
+                phase.chooserSeat(), phase.actorSeat(), resolved, phase.bonusUsed());
+        yield ActionResult.accept(nextLoader(state, declined, state.nextSeat(seat)));
       }
       default ->
           ActionResult.reject(

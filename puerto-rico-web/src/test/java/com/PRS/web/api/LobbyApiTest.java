@@ -188,6 +188,88 @@ class LobbyApiTest {
   }
 
   @Test
+  void startingAnAlreadyStartedGameReturns409() throws Exception {
+    String gameId = seatedGame();
+    mockMvc.perform(post("/api/games/{id}/start", gameId)).andExpect(status().isOk());
+
+    mockMvc
+        .perform(post("/api/games/{id}/start", gameId))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.reason").value("ALREADY_STARTED"));
+  }
+
+  @Test
+  void seatingAfterTheGameHasStartedReturns409() throws Exception {
+    String gameId = seatedGame();
+    mockMvc.perform(post("/api/games/{id}/start", gameId)).andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post("/api/games/{id}/seats", gameId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Latecomer\",\"kind\":\"AI\",\"engineId\":\"random\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.reason").value("ALREADY_STARTED"));
+  }
+
+  /**
+   * {@code seed} is a JsonNullable, so an explicit null arrives present-holding-null rather than
+   * undefined — the case that used to unbox into an NPE and 500.
+   */
+  @Test
+  void startingWithAnExplicitNullSeedPicksARandomOne() throws Exception {
+    String gameId = seatedGame();
+
+    mockMvc
+        .perform(
+            post("/api/games/{id}/start", gameId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"seed\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("STARTED"));
+  }
+
+  @Test
+  void twoGamesStartedWithTheSameSeedDealTheSameBoard() throws Exception {
+    String first = startWithSeed(seatedGame(), 42L);
+    String second = startWithSeed(seatedGame(), 42L);
+
+    assertThat(faceUpTiles(first)).isEqualTo(faceUpTiles(second)).isNotEmpty();
+  }
+
+  /** Three human seats, so nothing plays on its own and the dealt state stays put to be read. */
+  private String seatedGame() throws Exception {
+    String gameId = createGame();
+    for (int i = 0; i < 3; i++) {
+      seat(gameId, "Human" + i, "HUMAN", null);
+    }
+    return gameId;
+  }
+
+  private String startWithSeed(String gameId, long seed) throws Exception {
+    mockMvc
+        .perform(
+            post("/api/games/{id}/start", gameId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"seed\":%d}".formatted(seed)))
+        .andExpect(status().isOk());
+    return gameId;
+  }
+
+  private String faceUpTiles(String gameId) throws Exception {
+    return objectMapper
+        .readTree(
+            mockMvc
+                .perform(get("/api/games/{id}/state", gameId))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString())
+        .at("/state/tiles/faceUp")
+        .toString();
+  }
+
+  @Test
   void listAiEnginesIncludesRandom() throws Exception {
     mockMvc
         .perform(get("/api/ai/engines"))

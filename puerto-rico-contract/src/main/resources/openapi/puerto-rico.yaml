@@ -236,9 +236,11 @@ components:
       type: string
       enum: [AI, HUMAN]
 
+    # OPEN and STARTED are stored on the table; FINISHED and FAILED are derived from the live
+    # session, so a completed game stops advertising itself as in progress.
     GameTableStatus:
       type: string
-      enum: [OPEN, STARTED]
+      enum: [OPEN, STARTED, FINISHED, FAILED]
 
     SeatSummary:
       type: object
@@ -725,6 +727,7 @@ components:
           PASS_TRADING: "#/components/schemas/PassTradingAction"
           LOAD_SHIP: "#/components/schemas/LoadShipAction"
           LOAD_WHARF: "#/components/schemas/LoadWharfAction"
+          DECLINE_WHARF: "#/components/schemas/DeclineWharfAction"
           STORE_GOODS: "#/components/schemas/StoreGoodsAction"
       required: [type, seat]
       properties:
@@ -838,6 +841,12 @@ components:
           properties:
             good:
               $ref: "#/components/schemas/Good"
+
+    # Offered only when the Wharf is the owner's sole remaining option: the rulebook makes using it
+    # optional even though loading a cargo ship is compulsory.
+    DeclineWharfAction:
+      allOf:
+        - $ref: "#/components/schemas/PlayerAction"
 
     StoreGoodsAction:
       allOf:

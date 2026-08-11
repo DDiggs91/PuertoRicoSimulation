@@ -133,8 +133,4 @@ public final class TestGames {
   public static GameState chooseRole(GameState state, Role role) {
     return apply(state, new PlayerAction.SelectRole(state.phase().actorSeat(), role));
   }
-
-  public static int actor(GameState state) {
-    return state.phase().actorSeat();
-  }
 }

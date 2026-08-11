@@ -89,6 +89,10 @@ public final class SessionRunner implements AutoCloseable {
     } catch (RuntimeException e) {
       answer = CompletableFuture.failedFuture(e);
     }
+    // This hand-off is the trampoline, and the only thing bounding stack depth: onAnswer and
+    // handleFailure both call step() directly, so an actor answering instantly would recurse for
+    // the whole game. whenCompleteAsync queues onto the executor instead of running inline, so the
+    // stack unwinds here every time. Never weaken this to whenComplete.
     answer.whenCompleteAsync((action, error) -> onAnswer(decision, action, error), executor);
   }
 
@@ -118,9 +122,9 @@ public final class SessionRunner implements AutoCloseable {
       session.fail(
           "Seat %d's actor failed to produce a usable action after %d attempts"
               .formatted(decision.seat(), consecutiveFailures));
-      step();
-      return;
     }
+    // Either way the loop is re-entered: after fail() the session is FAILED, so step() sees that
+    // and stops rather than asking the same broken actor again.
     step();
   }
 

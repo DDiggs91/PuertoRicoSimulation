@@ -9,7 +9,13 @@ describe("GameBoard", () => {
     const view = makeView({
       state: makeState({
         governorSeat: 0,
-        phase: { type: "SETTLER", actorSeat: 1, chooserSeat: 0, queue: [1, 2, 0], haciendaOffered: false },
+        phase: {
+          type: "SETTLER",
+          actorSeat: 1,
+          chooserSeat: 0,
+          queue: [1, 2, 0],
+          haciendaOffered: false,
+        },
       }),
     });
 
@@ -30,7 +36,13 @@ describe("GameBoard", () => {
           makePlayer({ seat: 2, name: "Coco" }),
         ],
         governorSeat: 0,
-        phase: { type: "SETTLER", actorSeat: 1, chooserSeat: 0, queue: [1, 2, 0], haciendaOffered: false },
+        phase: {
+          type: "SETTLER",
+          actorSeat: 1,
+          chooserSeat: 0,
+          queue: [1, 2, 0],
+          haciendaOffered: false,
+        },
       }),
     });
 
@@ -46,7 +58,12 @@ describe("GameBoard", () => {
   it("renders the tile supply and trading house summary", () => {
     const view = makeView({
       state: makeState({
-        tiles: { faceUp: ["CORN", "INDIGO"], quarriesRemaining: 6, faceDownCount: 30, discardedCount: 2 },
+        tiles: {
+          faceUp: ["CORN", "INDIGO"],
+          quarriesRemaining: 6,
+          faceDownCount: 30,
+          discardedCount: 2,
+        },
         tradingHouse: { goods: ["COFFEE", "SUGAR"] },
       }),
     });
@@ -66,13 +83,29 @@ describe("GameBoard", () => {
     expect(screen.getAllByTestId("event-log-entry")).toHaveLength(1);
   });
 
-  it("shows final standings, highest total first, only once the game has ended", () => {
+  it("shows final standings only once the game has ended", () => {
     const { rerender } = render(<GameBoard view={makeView()} events={[]} standings={null} />);
     expect(screen.queryByTestId("final-standings")).not.toBeInTheDocument();
 
     const standings: ScoreBreakdown[] = [
-      { seat: 1, name: "Bo", chips: 20, buildingPoints: 10, bonusPoints: 0, tiebreak: 5, total: 30 },
-      { seat: 0, name: "Ana", chips: 15, buildingPoints: 20, bonusPoints: 5, tiebreak: 2, total: 40 },
+      {
+        seat: 0,
+        name: "Ana",
+        chips: 15,
+        buildingPoints: 20,
+        bonusPoints: 5,
+        tiebreak: 2,
+        total: 40,
+      },
+      {
+        seat: 1,
+        name: "Bo",
+        chips: 20,
+        buildingPoints: 10,
+        bonusPoints: 0,
+        tiebreak: 5,
+        total: 30,
+      },
     ];
     rerender(<GameBoard view={makeView()} events={[]} standings={standings} />);
 
@@ -80,5 +113,50 @@ describe("GameBoard", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent("Ana");
     expect(rows[1]).toHaveTextContent("Bo");
+  });
+
+  // The server ranks by total and then the rulebook tiebreak; re-sorting here on total alone would
+  // silently reorder a tie and contradict the ranking the same payload carries.
+  it("keeps the server's ranking for players tied on total", () => {
+    const standings: ScoreBreakdown[] = [
+      {
+        seat: 1,
+        name: "Bo",
+        chips: 20,
+        buildingPoints: 10,
+        bonusPoints: 0,
+        tiebreak: 9,
+        total: 30,
+      },
+      {
+        seat: 0,
+        name: "Ana",
+        chips: 20,
+        buildingPoints: 10,
+        bonusPoints: 0,
+        tiebreak: 3,
+        total: 30,
+      },
+    ];
+
+    render(<GameBoard view={makeView()} events={[]} standings={standings} />);
+
+    const rows = screen.getAllByTestId("standing-row");
+    expect(rows[0]).toHaveTextContent("Bo");
+    expect(rows[1]).toHaveTextContent("Ana");
+  });
+
+  it("shows a session failure as an alert", () => {
+    render(<GameBoard view={makeView()} events={[]} standings={null} failure="actor gave up" />);
+
+    const alert = screen.getByTestId("session-failure");
+    expect(alert).toHaveAttribute("role", "alert");
+    expect(alert).toHaveTextContent("actor gave up");
+  });
+
+  it("shows no failure alert on a healthy game", () => {
+    render(<GameBoard view={makeView()} events={[]} standings={null} failure={null} />);
+
+    expect(screen.queryByTestId("session-failure")).not.toBeInTheDocument();
   });
 });

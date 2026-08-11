@@ -13,6 +13,7 @@ import com.PRS.model.engine.RejectionReason;
 import com.PRS.model.game.GameState;
 import com.PRS.model.game.Phase;
 import com.PRS.model.rolecards.Role;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /** Settler phase: plantations, the quarry privilege, and the Hacienda/Hospice/Construction Hut. */
@@ -217,5 +218,19 @@ public class SettlerPhaseTest {
     state = TestGames.apply(state, new PlayerAction.TakeFaceUpTile(0, 0));
 
     assertThat(state.player(0).island().getFirst()).isEqualTo(existing);
+  }
+
+  @Test(dataProvider = "outOfRangeFaceUpIndexes")
+  public void takingATileOutsideTheFaceUpRowIsRefused(int index) {
+    GameState state = settlerPhase(3);
+
+    assertThat(TestGames.reject(state, new PlayerAction.TakeFaceUpTile(0, index)).reason())
+        .isEqualTo(RejectionReason.TILE_UNAVAILABLE);
+  }
+
+  @DataProvider(name = "outOfRangeFaceUpIndexes")
+  public Object[][] outOfRangeFaceUpIndexes() {
+    // A three-player row holds four tiles, so 4 is the first index past the end.
+    return new Object[][] {{-1}, {4}, {99}};
   }
 }

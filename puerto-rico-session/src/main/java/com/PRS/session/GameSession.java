@@ -49,6 +49,7 @@ public final class GameSession {
   private final CopyOnWriteArrayList<SessionListener> listeners = new CopyOnWriteArrayList<>();
   private final AtomicLong requestIdGen = new AtomicLong();
   private volatile Snapshot snapshot;
+  private boolean started;
 
   private GameSession(List<SeatedActor> seats, GameState state) {
     this.seats = List.copyOf(seats);
@@ -65,8 +66,18 @@ public final class GameSession {
     return new GameSession(seats, state);
   }
 
-  /** Announces {@link SessionEvent.GameStarted} and requests the first decision. Call once. */
-  public void start() {
+  /**
+   * Announces {@link SessionEvent.GameStarted} and requests the first decision. A second call is a
+   * no-op: re-announcing would bump the request id and silently strand whatever decision is
+   * outstanding. Synchronized on the same monitor as {@link #submit}, because it writes the
+   * snapshot too.
+   */
+  public synchronized void start() {
+    if (started) {
+      log.warn("start() called on an already-started session; ignoring");
+      return;
+    }
+    started = true;
     Snapshot current = snapshot;
     List<String> names = seats.stream().map(seated -> seated.actor().name()).toList();
     emit(new SessionEvent.GameStarted(broadcastView(current.state()), names));
@@ -166,6 +177,10 @@ public final class GameSession {
     history.add(action);
     history = List.copyOf(history);
 
+    // Install the new state before announcing it. Listeners run inline on this thread, so a client
+    // that receives ACTION_APPLIED and immediately re-reads state() must not be handed the board
+    // from before the action it was just told about.
+    snapshot = new Snapshot(next, current.requestId(), history, current.status(), List.of());
     emit(new SessionEvent.ActionApplied(broadcastView(next), seat, action));
 
     if (next.isOver()) {

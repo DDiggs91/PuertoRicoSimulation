@@ -1,0 +1,8 @@
+# Generated from puerto-rico-contract's OpenAPI spec by `npm run generate:api`; never hand-edited,
+# so never worth reformatting either.
+src/api/schema.d.ts
+
+node_modules
+target
+test-results
+playwright-report
