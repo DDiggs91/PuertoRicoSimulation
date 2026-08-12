@@ -22,9 +22,15 @@ describe("CentralBoard", () => {
 
     const captain = screen.getByTestId("role-card-CAPTAIN");
     expect(captain).toHaveAttribute("data-taken", "false");
-    expect(captain).toHaveTextContent("+2");
+    expect(captain).toHaveTextContent("Captain");
+    // The coins are a drawn piece, so the count is on its label rather than in the card's text.
+    expect(screen.getByLabelText("2 doubloons")).toBeInTheDocument();
   });
 
+  /**
+   * The ships are drawn, so the cargo kind rides on the ship's accessible label; the loaded/capacity
+   * count stays as text beside it, which is what a spectator scans for.
+   */
   it("renders each cargo ship's capacity, cargo, and load", () => {
     const state = makeState({
       ships: [
@@ -35,8 +41,10 @@ describe("CentralBoard", () => {
 
     render(<CentralBoard state={state} />);
 
-    expect(screen.getByTestId("cargo-ship-0")).toHaveTextContent("3 / 4 CORN");
-    expect(screen.getByTestId("cargo-ship-1")).toHaveTextContent("0 / 5 empty");
+    expect(screen.getByTestId("cargo-ship-0")).toHaveTextContent("3 / 4");
+    expect(screen.getByLabelText("Ship with 4 holds, 3 loaded with Corn")).toBeInTheDocument();
+    expect(screen.getByTestId("cargo-ship-1")).toHaveTextContent("0 / 5");
+    expect(screen.getByLabelText("Empty ship with 5 holds")).toBeInTheDocument();
   });
 
   it("renders the face-up plantation row", () => {
@@ -52,17 +60,22 @@ describe("CentralBoard", () => {
     render(<CentralBoard state={state} />);
 
     expect(screen.getAllByTestId("face-up-tile")).toHaveLength(3);
-    expect(screen.getByTestId("face-up-tiles")).toHaveTextContent("INDIGO");
+    expect(screen.getByTestId("tile-INDIGO")).toBeInTheDocument();
+    expect(screen.getByLabelText("Indigo plantation")).toBeInTheDocument();
     expect(screen.getByTestId("face-down-count")).toHaveTextContent("30");
   });
 
-  it("renders which goods are at the trading house, not only how many", () => {
+  it("renders which goods are at the trading house, and its empty slots", () => {
     const state = makeState({ tradingHouse: { goods: ["COFFEE", "SUGAR"] } });
 
     render(<CentralBoard state={state} />);
 
-    const contents = screen.getAllByTestId("trading-house-good").map((li) => li.textContent);
-    expect(contents).toEqual(["COFFEE", "SUGAR"]);
+    const contents = screen
+      .getAllByTestId("trading-house-good")
+      .map((li) => li.getAttribute("title"));
+    expect(contents).toEqual(["Coffee", "Sugar"]);
+    // Two sold, two slots still open — the phase ends the moment the fourth fills.
+    expect(screen.getAllByLabelText("Empty slot")).toHaveLength(2);
     expect(screen.getByTestId("trading-house-goods")).toHaveTextContent("2 / 4");
   });
 

@@ -5,12 +5,12 @@ into the whole system.
 
 ## Intent
 
-Renders a live spectator view of a running game — role/phase status, every
-player's board, the tile/trading-house summary, a running event log, and
-final standings — plus the lobby screen used to create a table and seat AI
-opponents into it. The same client serves both "I am playing" and "I am
-only watching AIs play"; this pass covers the watching half in full (see
-Status).
+Renders a running game — the central board (role track, ships, face-up
+plantations, trading house, supplies), every player's board, a running
+event log, and final standings — plus the lobby screen used to create a
+table, take a seat at it, and seat AI opponents. A seated human plays
+through per-phase action pickers; a visitor with no seat watches the same
+board without them.
 
 ## Stack
 
@@ -40,10 +40,14 @@ directly off disk.
 | `src/api/types.ts`         | Hand-written union aliases for `PlayerAction`/`SessionEvent` (see below) plus re-exports of the rest |
 | `src/api/client.ts`        | The configured `openapi-fetch` client, plus `unwrap`/`ApiError`                                      |
 | `src/api/events.ts`        | `EventSource` subscription → typed `SessionEvent`                                                    |
-| `src/state/gameReducer.ts` | Pure `(state, event) => state` — the event-sourced UI state                                          |
-| `src/components/`          | `LobbyScreen`, `GameBoard`, `CentralBoard`, `PlayerBoard`, `EventLog`                                |
-| `src/App.tsx`              | `?game=` routing, the `/state` bootstrap and resync, and the SSE subscription lifecycle              |
-| `src/main.tsx`             | The React entry point — mounts `App` and nothing else                                                |
+| `src/state/gameReducer.ts` | Pure `(state, event) => state` — the UI state, including the pending decision                        |
+| `src/state/seatSession.ts` | The seat token, persisted per game so a reload doesn't strand a player                               |
+| `src/components/`          | `LobbyScreen`, `GameBoard`, `CentralBoard`, `PlayerBoard`, `EventLog`, `ActionPanel`                 |
+| `src/components/pickers/`  | One picker per action family, plus the shared `ActionButton` and `PickerProps`                       |
+| `src/components/art/`      | Inline-SVG pieces (`Pieces`, `RoleIcon`, `BuildingCard`) and the names/colours in `labels.ts`        |
+| `src/styles/`              | `tokens.css` (palette and type) and `app.css` (layout)                                               |
+| `src/App.tsx`              | `?game=` routing, the `/state` + `/decision` bootstrap, SSE lifecycle, move submission               |
+| `src/main.tsx`             | The React entry point — mounts `App` and imports the stylesheet                                      |
 | `src/test/`                | `setup.ts` (jest-dom matchers) and `fixtures.ts` (minimal-but-valid `GameStateView` builders)        |
 | `e2e/`                     | Playwright specs                                                                                     |
 
@@ -80,11 +84,49 @@ retrofitted.** Every element a test locates has a stable `data-testid`
 (`role="status"` with `aria-live` on the phase indicator, `role="alert"` on
 errors) so the same locators work for a screen reader and for Playwright.
 
-**No client-side move-submission UI yet.** `LobbyScreen` seats AI engines
-only — seating a human produces a seat with no way to act, since nothing
-here calls `POST /moves` yet. That's the deliberately deferred half of this
-module's scope; the backend (`HumanActor`, seat tokens, the moves endpoint)
-is already built and tested in `puerto-rico-web` waiting for it.
+**Every option comes from the server's legal-action list, unchanged.** A
+picker never constructs a `PlayerAction`; it filters `Decision.options` (or
+the identical list on `DecisionRequestedEvent`) by variant and hands the very
+same object back on click. `HumanActor.offer` checks membership by equality,
+so "that action is not currently legal" isn't a race a fast clicker can win —
+it's unreachable from ordinary use. That is also why the pickers are split
+per phase rather than one form: each one only has to present a list it was
+given.
+
+**The pending decision carries the board it was computed against.** A
+legal-action list means nothing without the phase it came from, and the board
+arrives by other routes too — `/state` on bootstrap, and again on a resync
+after the stream drops. Pairing options from one moment with a board from
+another draws a picker for the wrong phase, which has nothing to offer and
+strands the player. `DecisionRequestedEvent` and `Decision` both carry their
+own `view`, so `PendingDecision` keeps it and `ActionPanel` reads its phase
+from there rather than from the surrounding `GameBoard`.
+
+**The seat token is persisted; it cannot be re-fetched.** `SeatTokens` mints
+one at seating time and has no lookup — being able to ask for a token would
+defeat what holding one proves. So a token kept only in React state is gone
+on reload, locking a player out of a seat the server still considers theirs.
+`seatSession.ts` stores `{gameId, seat, token, name}` in `localStorage` keyed
+by game id, and `App.tsx` restores it on the `?game=` path. Storage access is
+wrapped: a browser with site data blocked loses reload recovery, not the app.
+
+**`GET /decision` closes the window `DECISION_REQUESTED` leaves open.** That
+event fires once, when the session starts waiting. A client that arrives —
+or reloads — after that never hears it, and nothing replays it. So the
+bootstrap fetches the pending decision alongside the state, and treats a 404
+as the ordinary "nothing pending" answer rather than a load failure.
+
+**Numbers on cards are quoted by the server, never computed here.** A
+building's discounted cost and a good's sale price are engine rules
+(`GameEngine.buildCost` / `sellPrice`), so `Phase.buildOptions` and
+`Phase.goodPrices` carry the results and the pickers display them. What lives
+client-side is only what the server has no opinion about: English names and a
+palette, in `components/art/labels.ts`.
+
+**The art is inline SVG, not image files.** Nothing to fetch or cache-bust,
+and a piece recolours and resizes from its props. It is original work
+evoking the boxed game's look — this is an unaffiliated fan project (see the
+root README), so no published artwork is reproduced.
 
 **Routing is one query parameter, not a router.** This slice has exactly
 one navigable destination besides the lobby — a specific game — so `App.tsx`
@@ -117,10 +159,14 @@ via `pretest:unit`/`prebuild` npm hooks, so neither needs
 
 ## Status
 
-The lobby screen (create/list/seat AI/start) and the live spectator board
-(phase, per-player boards, event log, final standings) are built and
-tested — unit, component, and end-to-end. Framework/toolchain choice is
-settled (this stack). Not built yet: the click-to-move interaction UI for
-human players, and the frontend half of reconnect/timeout handling (both
-explicitly deferred — see `puerto-rico-web`'s README for what already
-exists server-side to build it on).
+Built and tested — unit, component, and end-to-end: the lobby (create, list,
+take a human seat, seat AI opponents, start), the live board (central board,
+per-player boards, event log, final standings), and human play — an action
+picker for each of the eight action families, move submission with the seat
+token, and seat persistence across a reload. Framework/toolchain choice is
+settled (this stack).
+
+Not built yet: the frontend half of timeout handling, which needs a
+server-side per-decision timeout that does not exist either (explicitly
+deferred — see `puerto-rico-session`'s README). Colonist placement is
+click-to-place, not drag-and-drop.

@@ -1,8 +1,10 @@
 package com.PRS.web.wire;
 
+import com.PRS.contract.model.BuildOptionView;
 import com.PRS.contract.model.CargoShipView;
 import com.PRS.contract.model.GameConfigView;
 import com.PRS.contract.model.GameStateView;
+import com.PRS.contract.model.GoodPriceView;
 import com.PRS.contract.model.IslandTile;
 import com.PRS.contract.model.PlacedBuilding;
 import com.PRS.contract.model.PlayerStateView;
@@ -11,6 +13,7 @@ import com.PRS.contract.model.RoleTrackView;
 import com.PRS.contract.model.TileSupplyView;
 import com.PRS.contract.model.TradingHouseView;
 import com.PRS.model.boards.CargoShip;
+import com.PRS.model.engine.GameEngine;
 import com.PRS.model.game.GameConfig;
 import com.PRS.model.game.GameState;
 import com.PRS.model.game.Phase;
@@ -19,6 +22,8 @@ import com.PRS.model.rolecards.RoleCard;
 import com.PRS.model.rolecards.RoleTrack;
 import com.PRS.model.scoring.ScoreBreakdown;
 import com.PRS.session.actors.Decision;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -76,7 +81,7 @@ public final class GameMapper {
             state.colonistSupply(),
             state.colonistsOnShip(),
             state.victoryPointSupply(),
-            toWire(state.phase()),
+            toWirePhase(state),
             state.finalRound());
     return wire;
   }
@@ -95,12 +100,23 @@ public final class GameMapper {
             player.island().stream()
                 .map(t -> new IslandTile(toWire(t.type()), t.occupied()))
                 .toList(),
-            player.buildings().stream()
-                .map(b -> new PlacedBuilding(ActionMapper.toWire(b.type()), b.colonists()))
-                .toList(),
+            player.buildings().stream().map(GameMapper::toWire).toList(),
             player.colonistsInSanJuan(),
             toGoodsMap(player.goods()));
     return wire;
+  }
+
+  /**
+   * Carries the card's printed capacity and victory points alongside the occupancy count, so a
+   * client can draw a building without holding its own copy of the building table.
+   */
+  private static PlacedBuilding toWire(com.PRS.model.buildings.PlacedBuilding building) {
+    com.PRS.model.buildings.BuildingType type = building.type();
+    return new PlacedBuilding(
+        ActionMapper.toWire(type),
+        building.colonists(),
+        type.colonistCapacity(),
+        type.victoryPoints());
   }
 
   private static RoleTrackView toWire(RoleTrack roles) {
@@ -138,7 +154,12 @@ public final class GameMapper {
     return wire;
   }
 
-  private static com.PRS.contract.model.Phase toWire(Phase phase) {
+  /**
+   * Takes the whole state, not just the phase: the builder and trader phases quote prices, and
+   * those are functions of the acting player's board as well as the phase.
+   */
+  private static com.PRS.contract.model.Phase toWirePhase(GameState state) {
+    Phase phase = state.phase();
     com.PRS.contract.model.Phase wire;
     switch (phase) {
       case Phase.RoleSelection p ->
@@ -158,6 +179,7 @@ public final class GameMapper {
         wire = phaseOf(com.PRS.contract.model.Phase.TypeEnum.BUILDER, p.actorSeat());
         wire.chooserSeat(p.chooserSeat());
         wire.queue(p.queue());
+        wire.buildOptions(buildOptions(state));
       }
       case Phase.CraftsmanBonus p -> {
         wire = phaseOf(com.PRS.contract.model.Phase.TypeEnum.CRAFTSMAN_BONUS, p.actorSeat());
@@ -168,6 +190,7 @@ public final class GameMapper {
         wire = phaseOf(com.PRS.contract.model.Phase.TypeEnum.TRADER, p.actorSeat());
         wire.chooserSeat(p.chooserSeat());
         wire.queue(p.queue());
+        wire.goodPrices(goodPrices(state));
       }
       case Phase.CaptainLoading p -> {
         wire = phaseOf(com.PRS.contract.model.Phase.TypeEnum.CAPTAIN_LOADING, p.actorSeat());
@@ -184,6 +207,30 @@ public final class GameMapper {
           wire = phaseOf(com.PRS.contract.model.Phase.TypeEnum.GAME_OVER, p.actorSeat());
     }
     return wire;
+  }
+
+  /**
+   * Every building priced for the acting player — not only the affordable ones. Which of them may
+   * actually be bought is {@code Decision.options}' job; this is the price list beside it.
+   */
+  private static List<BuildOptionView> buildOptions(GameState state) {
+    return Arrays.stream(com.PRS.model.buildings.BuildingType.values())
+        .map(
+            type ->
+                new BuildOptionView(
+                    ActionMapper.toWire(type),
+                    GameEngine.buildCost(state, type),
+                    type.victoryPoints(),
+                    type.colonistCapacity()))
+        .toList();
+  }
+
+  /** Every good priced for the acting player, for the same reason as {@link #buildOptions}. */
+  private static List<GoodPriceView> goodPrices(GameState state) {
+    return Arrays.stream(Good.values())
+        .map(
+            good -> new GoodPriceView(ActionMapper.toWire(good), GameEngine.sellPrice(state, good)))
+        .toList();
   }
 
   private static com.PRS.contract.model.Phase phaseOf(

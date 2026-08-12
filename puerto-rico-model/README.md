@@ -20,7 +20,6 @@ rulebook in [docs/puerto-rico-rules-en.pdf](../docs/puerto-rico-rules-en.pdf).
 Exposes the **Command/Query contract** consumed by `puerto-rico-session`.
 Three entry points, all pure functions:
 
-
 ```java
 GameState          state   = GameSetup.create(new GameConfig(names, seed));
 List<PlayerAction> options = GameEngine.legalActions(state);
@@ -34,6 +33,21 @@ so the layer above can turn it into a client error without catching anything.
 `GameState` is an immutable record tree. `apply` never touches its argument,
 so callers get snapshots, replay, and lookahead search for free — no
 defensive copying. Games are reproducible from their `GameConfig` seed.
+
+Two read-only companions price what those actions would cost, for the two
+phases where a price is a rule rather than a printed number:
+
+```java
+int cost  = GameEngine.buildCost(state, BuildingType.HARBOR);  // builder phase only
+int price = GameEngine.sellPrice(state, Good.COFFEE);          // trader phase only
+```
+
+They exist so a display can show the number without restating the rule —
+`buildCost` applies the builder's privilege and the quarry discount,
+`sellPrice` the trader's privilege and any market bonuses. Both price the
+move without asserting it is legal; `legalActions` remains the only answer to
+that. Called outside their own phase, where no such price exists, they throw
+`IllegalStateException`.
 
 One more public surface sits alongside those three: `RandomPlay.choose`,
 which picks uniformly at random from a list of legal actions. It ships here

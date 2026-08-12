@@ -1,6 +1,7 @@
 package com.PRS.model.phases;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import com.PRS.model.TestGames;
 import com.PRS.model.actions.PlayerAction;
@@ -83,6 +84,43 @@ public class BuilderPhaseTest {
     // Small Market costs 1, less the builder's privilege and a quarry: floored at 0.
     state = TestGames.apply(state, new PlayerAction.BuildBuilding(0, BuildingType.SMALL_MARKET));
     assertThat(state.player(0).doubloons()).isZero();
+  }
+
+  /**
+   * {@code GameEngine.buildCost} is the read-only window onto the same arithmetic a purchase
+   * charges, so a client can print the price without restating the rule. Asserted against the
+   * rulebook's three-quarry example above and then against what the build actually deducts.
+   */
+  @Test(dataProvider = "threeQuarryCosts")
+  public void buildCostQuotesWhatThePurchaseWillCharge(BuildingType type, int expected) {
+    GameState state = TestGames.newGame(3);
+    state = state.withPlayer(TestGames.player(1).doubloons(20).staffed(TileType.QUARRY, 3).build());
+    state = builderPhase(state);
+    state = TestGames.apply(state, new PlayerAction.PassBuilding(0));
+
+    assertThat(GameEngine.buildCost(state, type)).isEqualTo(expected);
+
+    GameState built = TestGames.apply(state, new PlayerAction.BuildBuilding(1, type));
+    assertThat(built.player(1).doubloons()).isEqualTo(20 - expected);
+  }
+
+  @Test
+  public void buildCostIncludesTheBuildersOwnPrivilege() {
+    GameState state = TestGames.newGame(3);
+    state = state.withPlayer(TestGames.player(0).doubloons(10).build());
+    state = builderPhase(state);
+
+    // Seat 0 chose the role, so it pays one less than the printed 8.
+    assertThat(GameEngine.buildCost(state, BuildingType.HARBOR)).isEqualTo(7);
+  }
+
+  @Test
+  public void thereIsNoBuildCostOutsideTheBuilderPhase() {
+    GameState state = TestGames.newGame(3);
+
+    assertThatIllegalStateException()
+        .isThrownBy(() -> GameEngine.buildCost(state, BuildingType.HARBOR))
+        .withMessageContaining("builder phase");
   }
 
   @Test

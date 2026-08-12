@@ -6,10 +6,12 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import com.PRS.contract.model.ActionAppliedEvent;
 import com.PRS.contract.model.ActionRejectedEvent;
 import com.PRS.contract.model.AiEngineInfo;
+import com.PRS.contract.model.BuildOptionView;
 import com.PRS.contract.model.DecisionRequestedEvent;
 import com.PRS.contract.model.GameEndedEvent;
 import com.PRS.contract.model.GameStartedEvent;
 import com.PRS.contract.model.GameTableStatus;
+import com.PRS.contract.model.GoodPriceView;
 import com.PRS.contract.model.Phase;
 import com.PRS.contract.model.SessionFailedEvent;
 import com.PRS.model.actions.ColonistSlot;
@@ -220,6 +222,92 @@ class WireMappingTest {
     assertThat(wire.getChooserSeat().isPresent()).isFalse();
     assertThat(wire.getQueue().orElse(List.of())).isEmpty();
     assertThat(wire.getCraftsmanOptions().orElse(List.of())).isEmpty();
+  }
+
+  /**
+   * The builder phase quotes a price for every building, discounts applied, so a client never
+   * re-derives the rule. Seat 0 is the chooser here, so the privilege is in play.
+   */
+  @Test
+  void builderPhaseQuotesADiscountedCostForEveryBuilding() {
+    Phase wire = phaseOnTheWire(new com.PRS.model.game.Phase.BuilderPhase(0, List.of(0, 1, 2)));
+
+    List<BuildOptionView> options = wire.getBuildOptions().orElse(List.of());
+    assertThat(options).hasSize(BuildingType.values().length);
+
+    BuildOptionView harbor =
+        options.stream()
+            .filter(o -> o.getBuildingType() == com.PRS.contract.model.BuildingType.HARBOR)
+            .findFirst()
+            .orElseThrow();
+    // Printed 8, less the builder's own privilege; no quarries on a fresh board.
+    assertThat(harbor.getCost()).isEqualTo(7);
+    assertThat(harbor.getVictoryPoints()).isEqualTo(BuildingType.HARBOR.victoryPoints());
+    assertThat(harbor.getColonistCapacity()).isEqualTo(BuildingType.HARBOR.colonistCapacity());
+  }
+
+  /** Priced, not filtered: a building the player cannot afford still appears, with its price. */
+  @Test
+  void builderPhaseQuotesBuildingsThePlayerCannotAfford() {
+    Phase wire = phaseOnTheWire(new com.PRS.model.game.Phase.BuilderPhase(1, List.of(0)));
+
+    assertThat(wire.getBuildOptions().orElse(List.of()))
+        .anySatisfy(
+            option -> {
+              assertThat(option.getBuildingType())
+                  .isEqualTo(com.PRS.contract.model.BuildingType.CITY_HALL);
+              assertThat(option.getCost()).isEqualTo(10);
+            });
+  }
+
+  @Test
+  void traderPhaseQuotesAPriceForEveryGood() {
+    Phase wire = phaseOnTheWire(new com.PRS.model.game.Phase.TraderPhase(1, List.of(1, 2, 0)));
+
+    List<GoodPriceView> prices = wire.getGoodPrices().orElse(List.of());
+    assertThat(prices).hasSize(Good.values().length);
+    // Seat 1 is both chooser and actor, so every list price carries the trader's privilege.
+    assertThat(prices)
+        .anySatisfy(
+            price -> {
+              assertThat(price.getGood()).isEqualTo(com.PRS.contract.model.Good.COFFEE);
+              assertThat(price.getPrice()).isEqualTo(Good.COFFEE.price() + 1);
+            });
+  }
+
+  /** Only the phase that has them: nothing else pays to compute a price list it cannot use. */
+  @Test
+  void pricesAreAbsentOutsideTheirOwnPhase() {
+    Phase roleSelection = phaseOnTheWire(new com.PRS.model.game.Phase.RoleSelection(0));
+
+    assertThat(roleSelection.getBuildOptions().orElse(List.of())).isEmpty();
+    assertThat(roleSelection.getGoodPrices().orElse(List.of())).isEmpty();
+
+    Phase builder = phaseOnTheWire(new com.PRS.model.game.Phase.BuilderPhase(0, List.of(0)));
+    assertThat(builder.getGoodPrices().orElse(List.of())).isEmpty();
+  }
+
+  /** A card's printed numbers ride along with the occupancy count, so a client can draw it. */
+  @Test
+  void placedBuildingsCarryTheirPrintedCapacityAndVictoryPoints() {
+    GameState state =
+        newGame()
+            .withPlayer(
+                newGame().player(0).toBuilder()
+                    .buildings(
+                        List.of(new com.PRS.model.buildings.PlacedBuilding(BuildingType.WHARF, 1)))
+                    .build());
+
+    var wire = GameMapper.toWire(com.PRS.session.view.GameView.of(state, null));
+
+    assertThat(wire.getState().getPlayers().getFirst().getBuildings())
+        .singleElement()
+        .satisfies(
+            building -> {
+              assertThat(building.getColonists()).isEqualTo(1);
+              assertThat(building.getCapacity()).isEqualTo(BuildingType.WHARF.colonistCapacity());
+              assertThat(building.getVictoryPoints()).isEqualTo(BuildingType.WHARF.victoryPoints());
+            });
   }
 
   private static Phase phaseOnTheWire(com.PRS.model.game.Phase phase) {

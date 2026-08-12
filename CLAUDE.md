@@ -11,11 +11,12 @@ built: `puerto-rico-model` (rules engine), `puerto-rico-session`
 `puerto-rico-ai` (a random-play engine), `puerto-rico-contract` (the
 OpenAPI wire contract, generating both Java and TypeScript), `puerto-rico-web`
 (the Spring Boot backend, Human Actor Adapter, SSE), and
-`puerto-rico-frontend` (React lobby + live spectator view). The one thing
-deliberately not built yet is the frontend's click-to-move interaction
-UI for human players — everything server-side it needs (`HumanActor`, seat
-tokens, the moves endpoint) already exists and is tested; see
-`puerto-rico-frontend/README.md`'s Status section.
+`puerto-rico-frontend` (React lobby, live board, and the click-to-move UI a
+seated human plays through). A game is playable end to end: create a table,
+take a seat, seat AI opponents, and play to final standings. What is still
+missing is a *good* opponent — `RandomAi` is the only engine — plus the
+deferred reliability work (per-decision timeouts, durable persistence). See
+[TODO.md](TODO.md).
 
 Git history prior to commit `9afca52` reflects abandoned early work and
 should be disregarded — treat this repository's current state as the

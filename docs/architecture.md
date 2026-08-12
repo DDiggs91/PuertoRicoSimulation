@@ -15,10 +15,10 @@ The system supports:
 3. Humans and AI playing together in the same browser-hosted game.
 
 A game seats 3-5 players, any mix of human and AI — the base game's range,
-with no 2-player variant. The one thing not built is the frontend's
-click-to-move UI for a human player; everything server-side it needs (the
-Human Actor Adapter, seat tokens, the moves endpoint) exists and is tested.
-See `puerto-rico-frontend`'s README.
+with no 2-player variant. All three are built: a human takes a seat in the
+lobby, and the frontend's action panel turns each pending `Decision` into a
+per-phase picker, submitting the chosen move through the Human Actor Adapter.
+Only one AI engine exists so far, and it plays at random.
 
 ## Scoping decisions
 

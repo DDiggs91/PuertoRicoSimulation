@@ -19,15 +19,16 @@ of AI opponents at varying skill levels.
 
 ## Status
 
-Playable end to end: create a table in a browser, seat three AI opponents,
-start the game, and watch it play out live to final standings, or open a
-second tab mid-game as a spectator. All seven modules are built — rules
-engine, orchestrator, lobby, AI, the OpenAPI wire contract, the Spring Boot
-backend, and the React frontend. The one piece deliberately not built yet
-is the click-to-move UI for a *human* player — everything server-side it
-needs already exists and is tested; see
-[puerto-rico-frontend/README.md](puerto-rico-frontend/README.md)'s Status
-section.
+Playable end to end: create a table in a browser, take a seat, seat AI
+opponents, and play the game out to final standings — or seat only AIs and
+watch, from your own tab or a second one opened mid-game. A seated human
+plays through a per-phase action picker for every one of the game's eight
+action families. All seven modules are built — rules engine, orchestrator,
+lobby, AI, the OpenAPI wire contract, the Spring Boot backend, and the React
+frontend.
+
+The main thing missing is a *good* opponent: the only AI engine plays at
+random. See [TODO.md](TODO.md) for that and the rest of the roadmap.
 
 ## Tech stack
 
@@ -68,7 +69,9 @@ section.
    ./mvnw -pl puerto-rico-web spring-boot:run
    ```
    then open [http://localhost:8080](http://localhost:8080) — create a
-   game, seat a few random AIs, and start it.
+   game, take a seat, seat a couple of random AIs, and start it.
+   [docs/playing.md](docs/playing.md) walks through a full game as one human
+   against two AIs.
 
 ## Project structure
 
@@ -78,6 +81,7 @@ section.
 ├── .github/workflows/       # CI
 ├── docs/
 │   ├── architecture.md      # How the modules fit together
+│   ├── playing.md           # How to run it and play a game
 │   ├── game-rules.md        # Puerto Rico rules reference for implementers
 │   └── puerto-rico-rules-en.pdf  # The official rulebook game-rules.md derives from
 ├── puerto-rico-model/       # Maven module — Game Engine (Rules Core)

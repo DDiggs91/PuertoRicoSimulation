@@ -6,6 +6,10 @@
     "module": "ESNext",
     "skipLibCheck": true,
 
+    // Vite's ambient types, which is what declares a `.css` import as a module rather than a
+    // missing one — the stylesheet is imported for its side effect from main.tsx.
+    "types": ["vite/client"],
+
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,

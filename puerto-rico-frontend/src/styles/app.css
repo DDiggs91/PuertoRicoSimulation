@@ -1,0 +1,707 @@
+@import "./tokens.css";
+
+/* ---------- ground ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--ink);
+  /* The island sits in the sea: a radial lift under the content, over deeper water at the edges. */
+  background:
+    radial-gradient(
+        ellipse at 50% 0%,
+        var(--ocean-shallow) 0%,
+        var(--ocean) 45%,
+        var(--ocean-deep) 100%
+      )
+      fixed,
+    var(--ocean-deep);
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+}
+
+.screen {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.screen--message {
+  color: var(--parchment);
+  align-items: flex-start;
+}
+
+/* ---------- panels ---------- */
+
+.panel {
+  background: linear-gradient(160deg, var(--parchment) 0%, var(--parchment-dim) 100%);
+  border: 2px solid var(--ink-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-panel);
+  padding: 12px 14px;
+}
+
+.panel__title {
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 0.92rem;
+}
+
+.notice--alert {
+  background: #f6dcd6;
+  border: 1px solid var(--alert);
+  color: var(--alert);
+}
+
+.notice--final {
+  background: var(--highlight);
+  border: 1px solid var(--ink-soft);
+  font-weight: 700;
+}
+
+/* ---------- controls ---------- */
+
+.button {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  border: 2px solid var(--ink-soft);
+  background: linear-gradient(180deg, var(--parchment) 0%, var(--parchment-deep) 100%);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+}
+
+.button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fbf1d8 0%, var(--parchment-dim) 100%);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.button--primary {
+  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 100%);
+  border-color: #7a5610;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f6ce70 0%, var(--gold-light) 100%);
+}
+
+.input {
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  padding: 6px 9px;
+  border: 2px solid var(--ink-soft);
+  border-radius: var(--radius);
+  background: #fdf6e4;
+  color: var(--ink);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-numeric);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--ink-soft);
+  background: var(--parchment-deep);
+}
+
+.badge--governor {
+  background: var(--gold-light);
+  border-color: #7a5610;
+}
+
+.badge--you {
+  background: var(--plantation);
+  border-color: var(--plantation-dark);
+  color: #f4f7ee;
+}
+
+/* ---------- lobby ---------- */
+
+.lobby__header {
+  color: var(--parchment);
+  text-align: center;
+  padding-top: 18px;
+}
+
+.lobby__title {
+  font-size: 2.4rem;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.lobby__subtitle {
+  margin: 4px 0 0;
+  opacity: 0.85;
+}
+
+.lobby__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lobby__games {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lobby__game {
+  font-family: var(--font-numeric);
+  font-size: 0.88rem;
+}
+
+.lobby__seating {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lobby__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--parchment);
+}
+
+.topbar__seat {
+  font-family: var(--font-numeric);
+  font-size: 0.85rem;
+}
+
+.topbar__warning {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--highlight);
+}
+
+/* ---------- board ---------- */
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.phase-line {
+  margin: 0;
+  font-family: var(--font-numeric);
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--parchment);
+  opacity: 0.9;
+}
+
+.board__players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.player-board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* The acting seat gets a lit border; this client's own board gets a permanent one, so a player
+   can find themselves at a glance without hunting for a name. */
+.player-board[data-acting="true"] {
+  border-color: var(--gold);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 0 2px var(--gold-light);
+}
+
+.player-board[data-you="true"] {
+  border-color: var(--plantation-dark);
+}
+
+.player-board__header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.player-board__name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.1rem;
+}
+
+.player-board__tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  font-family: var(--font-numeric);
+  font-size: 0.75rem;
+}
+
+.player-board__tally div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.player-board__tally dt {
+  color: var(--ink-soft);
+}
+
+.player-board__tally dd {
+  margin: 0;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.player-board__island,
+.player-board__city,
+.player-board__goods {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.player-board__goods li {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-numeric);
+  font-size: 0.8rem;
+}
+
+/* ---------- pieces ---------- */
+
+.tile {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.tile__colonist {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  line-height: 0;
+}
+
+.piece {
+  vertical-align: middle;
+}
+
+.building-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 128px;
+  padding: 5px 7px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--ink-soft);
+  background: #fbf3de;
+  box-shadow: var(--shadow-card);
+  /* The colour band down the left edge is what separates a production building from a town one,
+     the same way the printed cards' columns do. */
+  border-left-width: 7px;
+}
+
+.building-card[data-tint="production"] {
+  border-left-color: var(--tint-production);
+}
+
+.building-card[data-tint="violet"] {
+  border-left-color: var(--tint-violet);
+}
+
+.building-card[data-tint="violet-large"] {
+  border-left-color: var(--tint-violet-large);
+}
+
+.building-card__name {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.building-card__numbers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-numeric);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.building-card__circles {
+  display: flex;
+  gap: 2px;
+}
+
+.role-track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.role-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 92px;
+  padding: 6px 4px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--ink-soft);
+  background: #fbf3de;
+  font-family: var(--font-numeric);
+  font-size: 0.7rem;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+/* A taken role is off the table for the rest of the round — greyed rather than removed, so the
+   track keeps its shape and the round's shrinking choice stays legible. */
+.role-card[data-taken="true"] {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
+
+.role-card__name {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.role-card__taken {
+  color: var(--ink-soft);
+}
+
+/* ---------- central board ---------- */
+
+.central-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 18px;
+}
+
+.central-board__group {
+  min-width: 0;
+}
+
+.cargo-ships,
+.face-up-tiles,
+.trading-house {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cargo-ships li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cargo-ships__count {
+  font-family: var(--font-numeric);
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.trading-house__empty {
+  width: 26px;
+  height: 26px;
+  border: 2px dashed var(--ink-soft);
+  border-radius: 4px;
+  opacity: 0.45;
+}
+
+.central-board__supplies {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--parchment-deep);
+  font-family: var(--font-numeric);
+  font-size: 0.75rem;
+}
+
+.central-board__supplies div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.central-board__supplies dt {
+  color: var(--ink-soft);
+}
+
+.central-board__supplies dd {
+  margin: 0;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ---------- action panel ---------- */
+
+/*
+ * Deliberately in normal flow rather than pinned to the viewport. A sticky or fixed panel that is
+ * also its own scroll container fights any attempt to scroll an option into view — the panel moves
+ * with the page, so the target never arrives — which is exactly the kind of thing that reads as
+ * "the button doesn't work". Sitting at the top of the board it is on screen when it matters
+ * anyway.
+ */
+.action-panel {
+  background: linear-gradient(160deg, #fbf3de 0%, var(--parchment-dim) 100%);
+  border: 3px solid var(--gold);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-panel),
+    0 0 0 3px rgba(201, 150, 44, 0.28);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.action-panel__header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.action-panel__prompt {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.action-panel__pending {
+  font-family: var(--font-numeric);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+
+.picker,
+.picker__row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.picker {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.picker--roles,
+.picker--storage {
+  flex-direction: row;
+}
+
+/* The panel is the one scroll container. Nesting a second one inside it puts an option two
+   scrolls deep, which is both awkward to reach and impossible to scroll to reliably. */
+.picker__row--wrap {
+  max-height: none;
+}
+
+.picker__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+/* ---------- options ---------- */
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 9px;
+  border-radius: var(--radius);
+  border: 2px solid var(--ink-soft);
+  background: #fbf3de;
+  color: var(--ink);
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+
+.option:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: #fff9ea;
+  transform: translateY(-1px);
+}
+
+.option:focus-visible {
+  outline: 3px solid var(--ocean-shallow);
+  outline-offset: 2px;
+}
+
+.option:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.option--card {
+  width: 168px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.option--tile {
+  width: 104px;
+}
+
+.option--pass {
+  flex-direction: row;
+  background: var(--parchment-deep);
+}
+
+/* A space that exists on the board but isn't on offer this decision: shown, never clickable. */
+.option--inert {
+  cursor: default;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.option__title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.option__detail {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  line-height: 1.25;
+}
+
+.option__coins,
+.option__barrels {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* The one barrel anyone may keep, as distinct from a warehouse's whole kind. */
+.option__single {
+  padding-left: 5px;
+  border-left: 2px dotted var(--ink-soft);
+}
+
+/* ---------- log & standings ---------- */
+
+.event-log__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: var(--font-numeric);
+  font-size: 0.78rem;
+}
+
+.event-log__list li {
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(107, 84, 58, 0.18);
+}
+
+.standings__list {
+  margin: 0;
+  padding-left: 20px;
+  font-family: var(--font-numeric);
+}
+
+.standings__row {
+  display: flex;
+  justify-content: space-between;
+  max-width: 320px;
+  padding: 3px 0;
+}
+
+.standings__total {
+  font-weight: 700;
+}

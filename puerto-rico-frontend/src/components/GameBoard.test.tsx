@@ -24,7 +24,8 @@ describe("GameBoard", () => {
     const status = screen.getByTestId("game-phase");
     expect(status).toHaveAttribute("role", "status");
     expect(status).toHaveTextContent(/settler/i);
-    expect(status).toHaveTextContent("1");
+    // The acting seat is named, not numbered — a seat number means nothing to a player.
+    expect(status).toHaveTextContent("Bo to act");
   });
 
   it("renders a PlayerBoard per player, marking the governor and the acting seat", () => {

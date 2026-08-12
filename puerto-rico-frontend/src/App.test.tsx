@@ -45,6 +45,7 @@ function openGame(gameId: string | null) {
 beforeEach(() => {
   FakeEventSource.instances = [];
   vi.stubGlobal("EventSource", FakeEventSource);
+  window.localStorage.clear();
   openGame(null);
 });
 
@@ -187,5 +188,174 @@ describe("App", () => {
     unmount();
 
     expect(FakeEventSource.instances[0]?.closed).toBe(true);
+  });
+
+  // --- holding a seat, which is what separates a player from a spectator ---
+
+  /** Routes /state, /decision and /moves; everything else 404s so an unexpected call is loud. */
+  function stubGameServer({
+    decision = null as unknown,
+    onMove = (_body: unknown, _token: string | null) => jsonResponse(202, null),
+  } = {}) {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input instanceof Request ? input.url : input);
+      const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+      if (url.includes("/state")) {
+        return jsonResponse(200, makeView());
+      }
+      if (url.includes("/decision")) {
+        return decision === null
+          ? jsonResponse(404, { title: "No pending decision", status: 404 })
+          : jsonResponse(200, decision);
+      }
+      if (url.includes("/moves") && method === "POST") {
+        const rawBody =
+          init?.body ?? (input instanceof Request ? await input.clone().text() : undefined);
+        const headers = init?.headers ?? (input instanceof Request ? input.headers : new Headers());
+        const token =
+          headers instanceof Headers
+            ? headers.get("X-Seat-Token")
+            : ((headers as Record<string, string>)["X-Seat-Token"] ?? null);
+        return onMove(JSON.parse(rawBody as string), token);
+      }
+      return jsonResponse(404, { title: "Unhandled", status: 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  const pendingDecision = {
+    seat: 1,
+    view: makeView(),
+    requestId: 42,
+    options: [{ type: "SELECT_ROLE", seat: 1, role: "BUILDER" }],
+  };
+
+  function seatMe(gameId: string, seat = 1) {
+    window.localStorage.setItem(
+      `puerto-rico.seat.${gameId}`,
+      JSON.stringify({ gameId, seat, token: "tok", name: "Dani" }),
+    );
+  }
+
+  /**
+   * The reload case. A seat token is minted once and never re-issued, so without this a refresh
+   * mid-game leaves a player watching a seat the server still thinks is theirs.
+   */
+  it("restores a stored seat on the ?game= path and offers the pending decision", async () => {
+    stubGameServer({ decision: pendingDecision });
+    seatMe("abc-123");
+    openGame("abc-123");
+
+    render(<App />);
+
+    expect(await screen.findByTestId("seated-as")).toHaveTextContent("Dani");
+    expect(await screen.findByTestId("your-turn")).toBeInTheDocument();
+    expect(screen.getByTestId("action-select-role-BUILDER")).toBeInTheDocument();
+  });
+
+  /**
+   * DECISION_REQUESTED is emitted once, at the moment the wait starts. A client arriving after
+   * that never hears it, which is exactly the window `GET /decision` closes.
+   */
+  it("shows no action panel for a spectator, however the decision arrived", async () => {
+    stubGameServer({ decision: pendingDecision });
+    openGame("abc-123");
+
+    render(<App />);
+
+    await screen.findByTestId("game-phase");
+    expect(screen.queryByTestId("action-panel")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("seated-as")).not.toBeInTheDocument();
+  });
+
+  it("shows no action panel when the pending decision belongs to another seat", async () => {
+    stubGameServer({ decision: pendingDecision });
+    seatMe("abc-123", 2);
+    openGame("abc-123");
+
+    render(<App />);
+
+    await screen.findByTestId("game-phase");
+    expect(screen.queryByTestId("action-panel")).not.toBeInTheDocument();
+  });
+
+  it("treats a 404 from /decision as nothing pending, not as a load failure", async () => {
+    stubGameServer({ decision: null });
+    seatMe("abc-123");
+    openGame("abc-123");
+
+    render(<App />);
+
+    await screen.findByTestId("game-phase");
+    expect(screen.queryByTestId("load-error")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("action-panel")).not.toBeInTheDocument();
+  });
+
+  it("posts the chosen move with the seat token and the decision's request id", async () => {
+    const user = userEvent.setup();
+    const moves: { body: unknown; token: string | null }[] = [];
+    stubGameServer({
+      decision: pendingDecision,
+      onMove: (body, token) => {
+        moves.push({ body, token });
+        return jsonResponse(202, null);
+      },
+    });
+    seatMe("abc-123");
+    openGame("abc-123");
+
+    render(<App />);
+    await user.click(await screen.findByTestId("action-select-role-BUILDER"));
+
+    await waitFor(() => expect(moves).toHaveLength(1));
+    expect(moves[0]!.token).toBe("tok");
+    expect(moves[0]!.body).toEqual({
+      requestId: 42,
+      action: { type: "SELECT_ROLE", seat: 1, role: "BUILDER" },
+    });
+  });
+
+  it("surfaces a refused move instead of failing silently", async () => {
+    const user = userEvent.setup();
+    stubGameServer({
+      decision: pendingDecision,
+      onMove: () =>
+        jsonResponse(403, {
+          status: 403,
+          title: "Invalid seat token",
+          detail: "This token does not authorize seat 1.",
+        }),
+    });
+    seatMe("abc-123");
+    openGame("abc-123");
+
+    render(<App />);
+    await user.click(await screen.findByTestId("action-select-role-BUILDER"));
+
+    expect(await screen.findByTestId("action-panel-error")).toHaveTextContent(
+      "This token does not authorize seat 1.",
+    );
+  });
+
+  /** The live path: the event carries the options, so no fetch is needed to start acting. */
+  it("opens the panel from a DECISION_REQUESTED arriving over the stream", async () => {
+    stubGameServer({ decision: null });
+    seatMe("abc-123");
+    openGame("abc-123");
+
+    render(<App />);
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+    await screen.findByTestId("game-phase");
+
+    FakeEventSource.instances[0]!.emit({
+      type: "DECISION_REQUESTED",
+      view: makeView(),
+      seat: 1,
+      requestId: 7,
+      options: [{ type: "PASS_BUILDING", seat: 1 }],
+    });
+
+    expect(await screen.findByTestId("action-panel")).toBeInTheDocument();
   });
 });

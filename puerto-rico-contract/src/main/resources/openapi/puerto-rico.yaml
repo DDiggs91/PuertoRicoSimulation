@@ -410,11 +410,19 @@ components:
 
     PlacedBuilding:
       type: object
-      required: [type, colonists]
+      required: [type, colonists, capacity, victoryPoints]
       properties:
         type:
           $ref: "#/components/schemas/BuildingType"
         colonists:
+          type: integer
+        capacity:
+          type: integer
+          description: >
+            Colonist circles printed on the card. Carried alongside the
+            occupancy count so a client can draw the circles filled and empty
+            without keeping its own copy of the building table.
+        victoryPoints:
           type: integer
 
     GoodsMap:
@@ -547,6 +555,35 @@ components:
         index:
           type: integer
 
+    # The builder's privilege and the quarry discount are engine rules
+    # (GameEngine.buildCost). Quoting the result here is what keeps a client
+    # from restating them: it displays a number it was given, never one it
+    # derived.
+    BuildOptionView:
+      type: object
+      required: [buildingType, cost, victoryPoints, colonistCapacity]
+      properties:
+        buildingType:
+          $ref: "#/components/schemas/BuildingType"
+        cost:
+          type: integer
+          description: Doubloons the acting player would pay right now, discounts applied.
+        victoryPoints:
+          type: integer
+        colonistCapacity:
+          type: integer
+
+    # As BuildOptionView, for GameEngine.sellPrice: list price plus the
+    # trader's privilege and any market bonuses.
+    GoodPriceView:
+      type: object
+      required: [good, price]
+      properties:
+        good:
+          $ref: "#/components/schemas/Good"
+        price:
+          type: integer
+
     Phase:
       type: object
       description: >
@@ -595,6 +632,24 @@ components:
         bonusUsed:
           type: boolean
           nullable: true
+        buildOptions:
+          type: array
+          nullable: true
+          description: >
+            Every building priced for the acting player, present only during
+            BUILDER. Priced, not filtered — a building the player cannot
+            afford or already owns still appears, since the legal-action list
+            (Decision.options) is what says which may actually be bought.
+          items:
+            $ref: "#/components/schemas/BuildOptionView"
+        goodPrices:
+          type: array
+          nullable: true
+          description: >
+            Every good priced for the acting player, present only during
+            TRADER. Priced, not filtered, for the same reason as buildOptions.
+          items:
+            $ref: "#/components/schemas/GoodPriceView"
 
     GameStateView:
       type: object

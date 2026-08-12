@@ -1,4 +1,12 @@
-import type { GameStateView, GameView, PlayerStateView } from "../api/types";
+import type {
+  BuildingType,
+  GameStateView,
+  GameView,
+  PlacedBuilding,
+  PlayerAction,
+  PlayerStateView,
+} from "../api/types";
+import type { PendingDecision } from "../state/gameReducer";
 
 /** Minimal-but-valid fixtures for tests that don't care about full board fidelity. */
 
@@ -14,6 +22,17 @@ export function makePlayer(overrides: Partial<PlayerStateView> = {}): PlayerStat
     goods: {},
     ...overrides,
   };
+}
+
+/**
+ * A placed building with the card numbers the wire carries. Defaults are deliberately
+ * unremarkable — a test that cares about capacity or victory points states them.
+ */
+export function makeBuilding(
+  type: BuildingType,
+  overrides: Partial<PlacedBuilding> = {},
+): PlacedBuilding {
+  return { type, colonists: 0, capacity: 1, victoryPoints: 1, ...overrides };
 }
 
 export function makeState(overrides: Partial<GameStateView> = {}): GameStateView {
@@ -42,4 +61,15 @@ export function makeState(overrides: Partial<GameStateView> = {}): GameStateView
 
 export function makeView(overrides: Partial<GameView> = {}): GameView {
   return { state: makeState(), ...overrides };
+}
+
+/**
+ * A decision awaiting this seat, with whatever options the test wants offered. Carries a board
+ * like the real thing does — the options and the phase they are legal in travel together.
+ */
+export function makePending(
+  options: PlayerAction[],
+  overrides: Partial<PendingDecision> = {},
+): PendingDecision {
+  return { seat: 0, requestId: 1, options, state: makeState(), ...overrides };
 }

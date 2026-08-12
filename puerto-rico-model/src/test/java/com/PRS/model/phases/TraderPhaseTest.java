@@ -1,6 +1,7 @@
 package com.PRS.model.phases;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 import com.PRS.model.TestGames;
 import com.PRS.model.actions.PlayerAction;
@@ -83,6 +84,45 @@ public class TraderPhaseTest {
 
     state = TestGames.apply(state, new PlayerAction.SellGood(1, Good.SUGAR));
     assertThat(state.player(1).doubloons()).isEqualTo(2 + bonus);
+  }
+
+  /**
+   * {@code GameEngine.sellPrice} is the read-only window onto the same arithmetic a sale pays out,
+   * so a client can print the price without restating the rule.
+   */
+  @Test(dataProvider = "markets")
+  public void sellPriceQuotesWhatTheSaleWillPay(List<BuildingType> owned, int bonus) {
+    GameState state = TestGames.newGame(3);
+    var fixture = TestGames.player(1).doubloons(0).goods(Good.SUGAR, 1);
+    for (BuildingType market : owned) {
+      fixture = fixture.building(market);
+    }
+    state = state.withPlayer(fixture.build());
+    state = TestGames.chooseRole(state, Role.TRADER);
+    state = TestGames.apply(state, new PlayerAction.PassTrading(0));
+
+    assertThat(GameEngine.sellPrice(state, Good.SUGAR)).isEqualTo(2 + bonus);
+
+    GameState sold = TestGames.apply(state, new PlayerAction.SellGood(1, Good.SUGAR));
+    assertThat(sold.player(1).doubloons()).isEqualTo(2 + bonus);
+  }
+
+  @Test
+  public void sellPriceIncludesTheTradersOwnPrivilege() {
+    GameState state = TestGames.newGame(3);
+    state = state.withPlayer(TestGames.player(0).doubloons(0).goods(Good.COFFEE, 1).build());
+    state = TestGames.chooseRole(state, Role.TRADER);
+
+    assertThat(GameEngine.sellPrice(state, Good.COFFEE)).isEqualTo(5);
+  }
+
+  @Test
+  public void thereIsNoSalePriceOutsideTheTraderPhase() {
+    GameState state = TestGames.newGame(3);
+
+    assertThatIllegalStateException()
+        .isThrownBy(() -> GameEngine.sellPrice(state, Good.COFFEE))
+        .withMessageContaining("trader phase");
   }
 
   @Test

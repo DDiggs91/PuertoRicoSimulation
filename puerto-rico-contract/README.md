@@ -21,6 +21,18 @@ game, read state, submit a move, and stream live events. Named per
 contracts, all in one file because they're all part of the same wire
 boundary a browser client talks to.
 
+**Numbers the client displays travel over the wire, computed.** `Phase`
+carries `buildOptions` and `goodPrices` in the builder and trader phases, and
+`PlacedBuilding` carries its printed `capacity` and `victoryPoints`. Those
+could all be re-derived client-side from a copy of the building table and the
+discount rules — which is exactly the point of putting them here instead. A
+build cost is the builder's privilege and the quarry discount applied
+(`GameEngine.buildCost`), a sale price is the trader's privilege and market
+bonuses (`GameEngine.sellPrice`); both are rules, and rules live in
+`puerto-rico-model`. Both lists are *priced, not filtered*: every building
+and every good appears, affordable or not, because which of them may actually
+be chosen is `Decision.options`' job.
+
 ## Depends on
 
 Nothing in this reactor. It has no Java of its own beyond what

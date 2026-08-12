@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { makePlayer } from "../test/fixtures";
+import { makeBuilding, makePlayer } from "../test/fixtures";
 import { PlayerBoard } from "./PlayerBoard";
 
 describe("PlayerBoard", () => {
@@ -46,7 +46,7 @@ describe("PlayerBoard", () => {
         { type: "CORN", occupied: true },
         { type: "INDIGO", occupied: false },
       ],
-      buildings: [{ type: "SMALL_MARKET", colonists: 1 }],
+      buildings: [makeBuilding("SMALL_MARKET", { colonists: 1 })],
     });
 
     render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
@@ -55,7 +55,11 @@ describe("PlayerBoard", () => {
     expect(screen.getByTestId("player-0-building-count")).toHaveTextContent("1");
   });
 
-  it("lists each island tile with whether it is staffed", () => {
+  /**
+   * The tiles are drawn, not spelled, so occupancy rides on the tile's own accessible label and on
+   * the `data-occupied` attribute a test (or a stylesheet) can key off.
+   */
+  it("draws each island tile with whether it is staffed", () => {
     const player = makePlayer({
       seat: 0,
       island: [
@@ -68,26 +72,28 @@ describe("PlayerBoard", () => {
 
     const tiles = screen.getAllByTestId("player-0-island-tile");
     expect(tiles).toHaveLength(2);
-    expect(tiles[0]).toHaveTextContent("CORN");
     expect(tiles[0]).toHaveAttribute("data-occupied", "true");
-    expect(tiles[1]).toHaveTextContent("QUARRY");
     expect(tiles[1]).toHaveAttribute("data-occupied", "false");
+    expect(screen.getByLabelText("Corn field, staffed")).toBeInTheDocument();
+    expect(screen.getByLabelText("Quarry, idle")).toBeInTheDocument();
   });
 
-  it("lists each building with how many colonists are on it", () => {
+  it("draws each building as a card with its filled and empty colonist circles", () => {
     const player = makePlayer({
       seat: 1,
       buildings: [
-        { type: "SMALL_MARKET", colonists: 1 },
-        { type: "WHARF", colonists: 0 },
+        makeBuilding("SMALL_MARKET", { colonists: 1, capacity: 1, victoryPoints: 1 }),
+        makeBuilding("WHARF", { colonists: 0, capacity: 1, victoryPoints: 3 }),
       ],
     });
 
     render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
 
-    const buildings = screen.getAllByTestId("player-1-building");
-    expect(buildings[0]).toHaveTextContent("SMALL_MARKET — 1 colonist");
-    expect(buildings[1]).toHaveTextContent("WHARF — 0 colonists");
+    expect(screen.getAllByTestId("player-1-building")).toHaveLength(2);
+    expect(screen.getByTestId("building-card-SMALL_MARKET")).toHaveTextContent("Small Market");
+    expect(screen.getByTestId("building-card-WHARF")).toHaveTextContent("3 VP");
+    expect(screen.getByLabelText("1 of 1 colonist spaces filled")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 of 1 colonist spaces filled")).toBeInTheDocument();
   });
 
   it("lists goods held, in trading-house order, omitting kinds held none of", () => {
@@ -96,7 +102,18 @@ describe("PlayerBoard", () => {
     render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
 
     const goods = screen.getByTestId("player-2-goods");
-    expect(goods.textContent).toBe("CORN × 3COFFEE × 2");
+    expect(goods.textContent).toBe("× 3× 2");
+    expect(screen.getByTestId("player-2-good-CORN")).toHaveTextContent("× 3");
+    expect(screen.getByTestId("player-2-good-COFFEE")).toHaveTextContent("× 2");
     expect(screen.queryByTestId("player-2-good-SUGAR")).not.toBeInTheDocument();
+  });
+
+  it("marks this client's own board so a player can find themselves", () => {
+    const player = makePlayer({ seat: 1 });
+
+    render(<PlayerBoard player={player} isGovernor={false} isActing={false} isYou={true} />);
+
+    expect(screen.getByTestId("player-board-1")).toHaveAttribute("data-you", "true");
+    expect(screen.getByTestId("player-1-is-you")).toBeInTheDocument();
   });
 });

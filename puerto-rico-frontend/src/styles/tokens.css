@@ -1,0 +1,50 @@
+/*
+ * The palette and typography, in one place.
+ *
+ * Colours are taken from the physical game's look: an ocean the island sits in, parchment for
+ * every card and panel, plantation green, quarry grey, doubloon gold, and the violet that
+ * separates a town building from a production one. Nothing here fetches anything — the display
+ * face is a system serif stack, so the app has no network dependency for its own appearance.
+ */
+
+:root {
+  /* Ground */
+  --ocean-deep: #0f3a5c;
+  --ocean: #1a5c86;
+  --ocean-shallow: #2c7ca8;
+
+  /* Paper */
+  --parchment: #f3e6c8;
+  --parchment-dim: #e6d5b0;
+  --parchment-deep: #d8c194;
+  --ink: #3b2a17;
+  --ink-soft: #6b543a;
+
+  /* Land */
+  --plantation: #5b8a3c;
+  --plantation-dark: #3c6127;
+  --quarry: #8e8880;
+
+  /* Pieces */
+  --gold: #c9962c;
+  --gold-light: #eabb52;
+  --colonist: #7c4a24;
+
+  /* Building bands */
+  --tint-production: #b9cbd8;
+  --tint-violet: #cbb6dd;
+  --tint-violet-large: #a487bd;
+
+  /* Feedback */
+  --alert: #8d2f22;
+  --highlight: #f2c14e;
+
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow-card: 0 1px 2px rgba(30, 20, 8, 0.35);
+  --shadow-panel: 0 3px 10px rgba(6, 24, 38, 0.4);
+
+  --font-display: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --font-body: Georgia, "Times New Roman", serif;
+  --font-numeric: "DejaVu Sans", "Segoe UI", system-ui, sans-serif;
+}

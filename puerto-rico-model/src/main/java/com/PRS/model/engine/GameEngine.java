@@ -1,8 +1,10 @@
 package com.PRS.model.engine;
 
 import com.PRS.model.actions.PlayerAction;
+import com.PRS.model.buildings.BuildingType;
 import com.PRS.model.game.GameState;
 import com.PRS.model.game.Phase;
+import com.PRS.model.goods.Good;
 import java.util.List;
 
 /**
@@ -54,5 +56,38 @@ public final class GameEngine {
       case Phase.GameOver ignored ->
           ActionResult.reject(RejectionReason.GAME_OVER, "The game has finished");
     };
+  }
+
+  /**
+   * What the player to move would pay for {@code type} right now: the printed cost less the
+   * builder's privilege and the quarry discount. Priced, not decided — a caller still has to check
+   * {@link #legalActions} to know whether the purchase is actually available.
+   *
+   * <p>Exposed so a client can display the number without restating the rule; the arithmetic lives
+   * in one place and this is the read-only window onto it.
+   *
+   * @throws IllegalStateException if the game is not in the builder phase, where no such price
+   *     exists
+   */
+  public static int buildCost(GameState state, BuildingType type) {
+    if (!(state.phase() instanceof Phase.BuilderPhase phase)) {
+      throw new IllegalStateException("Build costs only exist during the builder phase");
+    }
+    return BuilderPhaseHandler.costFor(state, phase, type);
+  }
+
+  /**
+   * What the player to move would be paid for selling one barrel of {@code good} right now: the
+   * list price plus the trader's privilege and any market bonuses. As with {@link #buildCost}, this
+   * prices the sale without asserting it is legal.
+   *
+   * @throws IllegalStateException if the game is not in the trader phase, where no such price
+   *     exists
+   */
+  public static int sellPrice(GameState state, Good good) {
+    if (!(state.phase() instanceof Phase.TraderPhase phase)) {
+      throw new IllegalStateException("Sale prices only exist during the trader phase");
+    }
+    return TraderPhaseHandler.priceFor(state, phase, good);
   }
 }

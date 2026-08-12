@@ -9,46 +9,7 @@ Sections are priority order. Within a section, roughly implementation order.
 
 ---
 
-## 1. Human play — the click-to-move UI (P0)
-
-The single largest gap in the project. Everything server-side is built and
-tested (`HumanActor`, seat tokens, `POST /moves`) — see
-`puerto-rico-frontend/README.md`'s Status section — but there is no client UI
-that lets a seated human actually choose and submit a move. Today, seating a
-human produces a seat with no way to act.
-
-- **Per-phase action pickers.** `GET /decision` already returns the exact
-  `PlayerAction` list a seat may choose from (`Decision.options`); the UI's
-  job is presenting them comprehensibly rather than as raw JSON. Each of the
-  eight action families needs its own presentation:
-  - Role selection — clickable role cards showing accumulated doubloons
-  - Settler — clickable face-up tiles, a quarry option, Hacienda take/skip, pass
-  - Mayor — drag/click colonists from San Juan onto empty circles, end-placement
-  - Builder — a buildable-buildings list showing discounted cost, pass
-  - Craftsman bonus — pick a produced good, pass
-  - Trader — sellable goods with price, pass
-  - Captain — loadable ships per good, Wharf option
-  - Captain storage — warehouse-kind and single-barrel picker
-- **Submit flow.** `POST /games/{id}/moves` with `X-Seat-Token` and the chosen
-  action's `requestId`; handle the 202 (offer accepted, wait for the event
-  stream) versus 400/403/404 (`ApiError`) paths already modeled in
-  `api/client.ts`.
-- **"It's your turn" affordance.** The board already knows the acting seat
-  (`phase.actorSeat`) — surface that distinctly for the seat the client holds
-  a token for, not just in the existing spectator-facing phase line.
-- **Seat token persistence.** Confirmed absent: no `localStorage`/
-  `sessionStorage` use anywhere in `puerto-rico-frontend/src`. A human's seat
-  token exists only in React state, so a page reload mid-game strands the
-  player with no way to re-authenticate as their seat (the server-side
-  `SeatTokens` entry is still valid — the client just no longer has it).
-  Persist `{gameId, seat, token}` client-side keyed by game id, restored on
-  the `?game=` bootstrap path in `App.tsx`.
-- **Legal-options-only enforcement in the UI**, not just the server. `HumanActor.offer`
-  already rejects an action not in `pending.options()` — the picker should
-  only ever construct options from that same list, so a rejection is
-  unreachable from normal use rather than a race the user can trigger.
-
-## 2. AI skill levels & a training module (P0)
+## 1. AI skill levels & a training module (P0)
 
 Only one AI exists today: `RandomAi`, which samples uniformly from
 `GameEngine.legalActions`. `puerto-rico-ai/README.md` already frames this as
@@ -59,7 +20,7 @@ switches on `engineId`), so adding engines is additive, not a redesign.
 
 Recommended progression, cheapest first:
 
-### 2.1 Heuristic engines (no training required)
+### 1.1 Heuristic engines (no training required)
 
 - A **greedy** engine: for each legal action, apply it via `GameEngine.apply`
   (the model is a pure function — cheap to try every option) and pick the one
@@ -71,11 +32,11 @@ Recommended progression, cheapest first:
   `AiEngineInfo` id/description, so it's selectable in the lobby the same way
   `random` is today — no lobby or web changes needed beyond that.
 
-### 2.2 Search-based engine ("Hard")
+### 1.2 Search-based engine ("Hard")
 
 - A bounded-depth **minimax/expectimax or Monte Carlo Tree Search** engine,
   using `GameEngine.legalActions`/`apply` as the simulator and a heuristic
-  evaluation function (extending 2.1's) as the leaf value. `GameState` being
+  evaluation function (extending 1.1's) as the leaf value. `GameState` being
   an immutable record tree with no defensive-copy cost
   (`puerto-rico-model/README.md`: *"callers get snapshots, replay, and
   lookahead search for free"*) is exactly what this needs and is already
@@ -88,7 +49,7 @@ Recommended progression, cheapest first:
   from `RandomAi` so a bounded search fits inside the same pacing mechanism
   rather than blocking the session thread.
 
-### 2.3 Trained/learned engine and a training module
+### 1.3 Trained/learned engine and a training module
 
 This is the biggest lift and the one genuinely new piece of infrastructure:
 
@@ -102,7 +63,7 @@ This is the biggest lift and the one genuinely new piece of infrastructure:
   shape, run thousands of times, varying the AI's parameters between runs.
 - **Parameter representation.** Start with a weighted linear evaluation
   function (interpretable, small, fast to evaluate — feeds directly into
-  2.2's search) tuned via self-play plus a simple optimizer (hill-climbing,
+  1.2's search) tuned via self-play plus a simple optimizer (hill-climbing,
   a genetic algorithm, or CMA-ES over the weight vector). A neural
   net/RL approach is a plausible "someday" upgrade but is a much larger
   undertaking (training infrastructure, GPU/tooling dependencies that don't
@@ -123,32 +84,29 @@ This is the biggest lift and the one genuinely new piece of infrastructure:
 - **Surface skill levels in the lobby UI.** Once `AiRegistry.available()`
   lists more than one engine, `LobbyScreen`'s "Seat a random AI" button needs
   to become an engine picker (dropdown/radio over `available()`'s
-  `displayName`/`description`) instead of hardcoding `engineId: "random"`
-  (`LobbyScreen.tsx:51`).
+  `displayName`/`description`) instead of hardcoding `engineId: "random"` in
+  `addAiSeat`.
 
 Update `puerto-rico-ai/README.md` and `docs/architecture.md`'s AI Engine
 Plugins section once new engines land — both already anticipate this
 happening, so it's an addition, not a rewrite.
 
-## 3. Frontend completeness beyond move-submission
+## 2. Frontend polish beyond the current board
 
-Already itemized with file/line detail in REVIEW.md — listed here only so
-the roadmap is a complete picture in one read:
+The board renders every shared component and every player's island and city,
+a seated human can play all eight action families, and the whole thing is
+styled. What is left is refinement rather than absence:
 
-- Central board rendering (role track, ships, face-up tiles, trading-house
-  contents) — [REVIEW.md §5.4](REVIEW.md#54-gap-the-spectator-board-renders-counts-not-a-board)
-- Spectating a game from the lobby list, not just via a shared URL —
-  [REVIEW.md §5.5](REVIEW.md#55-gap-you-cannot-spectate-a-game-from-the-lobby-list)
-- SSE reconnect/error handling and a bounded event log —
-  [REVIEW.md §5.6](REVIEW.md#56-gap-no-sse-error-handling-or-reconnect-the-event-array-grows-unbounded)
-- Any styling at all — [REVIEW.md §5.7](REVIEW.md#57-gap-the-application-has-no-styling-whatsoever)
+- **Drag-and-drop colonist placement.** Placement is click-to-place today,
+  which the rules need nothing more than; dragging a colonist from San Juan
+  onto a circle is the physical gesture the board suggests.
+- **Reading the board mid-decision.** The action panel is sticky at the
+  bottom and can cover a good deal of a five-player table on a short viewport.
+- **A move history worth reading.** The event log names players and describes
+  actions in words, but not *what* was taken or built — "Ana built a
+  building", not "Ana built the Hospice for 2".
 
-New, once move-submission exists: the per-phase action pickers from
-[§1](#1-human-play--the-click-to-move-ui-p0) need the same `data-testid`/ARIA
-rigor the spectator components already follow, plus Playwright coverage for
-at least one full human-played turn per phase family.
-
-## 4. Reliability & production-readiness (explicitly deferred scoping decisions)
+## 3. Reliability & production-readiness (explicitly deferred scoping decisions)
 
 These are named "out of scope" in `docs/architecture.md` and
 `puerto-rico-session/README.md` today — real limitations, not oversights —
@@ -165,10 +123,10 @@ unattended users rather than a demo:
   auto-pass or auto-play-random fallback after N seconds is the natural
   first version.
 - **Disconnect/reconnect handling, pause/resume.** Explicitly deferred
-  alongside the timeout item above, same README. Ties into the seat-token
-  persistence in [§1](#1-human-play--the-click-to-move-ui-p0) — reconnect is
-  only meaningful once the client can re-identify itself as a seat after
-  losing in-memory state.
+  alongside the timeout item above, same README. The client half now exists —
+  a seat token survives a reload and `GET /decision` restores the pending
+  move — but the server still has no notion of a seat being away, so a
+  disconnected player simply blocks their seat until they return.
 - **Durable persistence** (resume a game after a server restart, replay,
   history). Explicitly out of scope per `docs/architecture.md`'s scoping
   decisions. A real deployment loses every in-progress game on redeploy;
@@ -184,7 +142,7 @@ unattended users rather than a demo:
   table — is also a roadmap item for running this unattended: without it, an
   always-on deployment eventually exhausts memory purely from lobby history.
 
-## 5. Explicitly out of scope (naming these so nobody assumes they're planned)
+## 4. Explicitly out of scope (naming these so nobody assumes they're planned)
 
 Per `CLAUDE.md` and `docs/architecture.md`'s stated scoping decisions, not
 currently on any roadmap:
@@ -206,15 +164,14 @@ current architecture.
 
 ## Suggested sequencing
 
-1. **§1 (human play)** and **§2.1 (greedy AI)** in parallel — independent,
-   both unblock real gameplay, and §2.1 gives the human someone worth
-   playing against.
-2. **§3** (frontend completeness) alongside §1, since both touch the same
-   components and are easiest to land together.
-3. **§2.2 → §2.3** (search, then training) once §2.1 proves the extensibility
+1. **§1.1 (greedy AI)** first — a human can play now, but only against
+   opponents that move at random, so a real opponent is what the game most
+   visibly lacks.
+2. **§1.2 → §1.3** (search, then training) once §1.1 proves the extensibility
    path end-to-end.
-4. **§4** once the project has real users to protect against — timeouts and
+3. **§2** (frontend polish) whenever it's in the way; none of it blocks play.
+4. **§3** once the project has real users to protect against — timeouts and
    eviction matter most exactly when someone leaves a tab open or a game
    unattended.
-5. **§5** only if a concrete need arises; treat this section as "decide before
+5. **§4** only if a concrete need arises; treat this section as "decide before
    building," not a backlog.

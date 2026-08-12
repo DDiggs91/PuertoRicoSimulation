@@ -15,15 +15,26 @@ describe("describeEvent", () => {
     expect(text).toContain("Bo");
   });
 
-  it("describes ACTION_APPLIED with seat and action type", () => {
+  /** Every event carries the board, so the log names players rather than numbering seats. */
+  it("describes ACTION_APPLIED by player name and in plain words", () => {
     const text = describeEvent({
       type: "ACTION_APPLIED",
       view: makeView(),
       seat: 1,
       action: { type: "PASS_BUILDING", seat: 1 },
     });
-    expect(text).toContain("Seat 1");
-    expect(text).toContain("PASS_BUILDING");
+    expect(text).toBe("Bo built nothing");
+  });
+
+  it("falls back to the seat number for a seat not on the board it was handed", () => {
+    const text = describeEvent({
+      type: "DECISION_REQUESTED",
+      view: makeView(),
+      seat: 9,
+      options: [],
+      requestId: 1,
+    });
+    expect(text).toBe("Seat 9 is deciding");
   });
 
   it("describes ACTION_REJECTED with the rejection detail", () => {
@@ -67,7 +78,7 @@ describe("EventLog", () => {
     expect(log).toHaveAttribute("aria-live", "polite");
     const entries = screen.getAllByTestId("event-log-entry");
     expect(entries).toHaveLength(2);
-    expect(entries[1]).toHaveTextContent("PASS_BUILDING");
+    expect(entries[1]).toHaveTextContent("Ana built nothing");
   });
 
   it("renders nothing but a container when there are no events yet", () => {
