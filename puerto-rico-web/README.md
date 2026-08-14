@@ -79,6 +79,14 @@ submitting directly would advance the game while the runner still holds
 this actor's unresolved future, leaving it waiting forever on a decision
 already answered a different way.
 
+Validation is list membership for every action but one. A mayor turn is
+answered with `SetColonistPlacement`, a whole colonist arrangement rather
+than a choice from a list — the frontend stages one locally and rarely
+submits the one arrangement the engine happened to enumerate — so that
+variant is instead checked by asking the engine directly: `GameEngine.apply`
+against the pending decision's own board, the same call `GameSession.submit`
+would make next. See `HumanActor`'s doc-comment.
+
 **Rejection stays a value through the mapping layer too.**
 `ApiException` carries an HTTP status, a title, and — when the failure
 traces back to one — a `RejectionReason` or `LobbyRejectionReason` enum

@@ -14,7 +14,6 @@ import com.PRS.contract.model.GameTableStatus;
 import com.PRS.contract.model.GoodPriceView;
 import com.PRS.contract.model.Phase;
 import com.PRS.contract.model.SessionFailedEvent;
-import com.PRS.model.actions.ColonistSlot;
 import com.PRS.model.actions.PlayerAction;
 import com.PRS.model.buildings.BuildingType;
 import com.PRS.model.engine.GameEngine;
@@ -58,9 +57,8 @@ class WireMappingTest {
         new PlayerAction.TakeHaciendaTile(0),
         new PlayerAction.SkipHacienda(1),
         new PlayerAction.PassSettling(2),
-        new PlayerAction.PlaceColonist(0, new ColonistSlot.Island(3)),
-        new PlayerAction.PlaceColonist(1, new ColonistSlot.Building(2)),
-        new PlayerAction.EndColonistPlacement(2),
+        new PlayerAction.SetColonistPlacement(0, List.of(true, false), List.of(1, 0)),
+        new PlayerAction.SetColonistPlacement(1, List.of(), List.of(3)),
         new PlayerAction.BuildBuilding(0, BuildingType.SMALL_MARKET),
         new PlayerAction.PassBuilding(1),
         new PlayerAction.TakeCraftsmanBonus(2, Good.CORN),
@@ -100,6 +98,54 @@ class WireMappingTest {
     assertThat(wire.getState().getFinalRound()).isFalse();
     assertThat(wire.getState().getShips()).hasSize(3);
     assertThat(wire.getState().getRoles().getCards()).hasSize(state.roles().cards().size());
+  }
+
+  @Test
+  void theConfigCarriesEveryBuildingsPrintedCardFace() {
+    com.PRS.contract.model.GameView wire = GameMapper.toWire(newView());
+
+    var catalog = wire.getState().getConfig().getBuildingCatalog();
+
+    assertThat(catalog).hasSize(BuildingType.values().length);
+    assertThat(catalog)
+        .filteredOn(entry -> entry.getType() == com.PRS.contract.model.BuildingType.COFFEE_ROASTER)
+        .singleElement()
+        .satisfies(
+            entry -> {
+              // The printed cost, not a discounted quote — that is BuildOptionView's job.
+              assertThat(entry.getCost()).isEqualTo(BuildingType.COFFEE_ROASTER.cost());
+              assertThat(entry.getVictoryPoints())
+                  .isEqualTo(BuildingType.COFFEE_ROASTER.victoryPoints());
+              assertThat(entry.getColonistCapacity())
+                  .isEqualTo(BuildingType.COFFEE_ROASTER.colonistCapacity());
+              assertThat(entry.getCopies()).isEqualTo(BuildingType.COFFEE_ROASTER.copies());
+            });
+  }
+
+  @Test
+  void aPlayerCarriesTheirBoardsCapacitiesAlongsideWhatIsOnIt() {
+    GameState state =
+        newGame()
+            .withPlayer(
+                GameSetup.create(new GameConfig(names(), 42L)).player(0).toBuilder()
+                    .buildings(
+                        List.of(
+                            new com.PRS.model.buildings.PlacedBuilding(BuildingType.CITY_HALL, 0),
+                            new com.PRS.model.buildings.PlacedBuilding(
+                                BuildingType.SMALL_MARKET, 0)))
+                    .build());
+
+    var player =
+        GameMapper.toWire(com.PRS.session.view.GameView.of(state, 0))
+            .getState()
+            .getPlayers()
+            .getFirst();
+
+    assertThat(player.getIslandSpaces()).isEqualTo(com.PRS.model.boards.PlayerState.ISLAND_SPACES);
+    assertThat(player.getCitySpaces()).isEqualTo(com.PRS.model.boards.PlayerState.CITY_SPACES);
+    // Two buildings, three spaces — the large violet one occupies two.
+    assertThat(player.getBuildings()).hasSize(2);
+    assertThat(player.getCitySpacesUsed()).isEqualTo(3);
   }
 
   @Test

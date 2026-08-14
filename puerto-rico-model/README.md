@@ -74,7 +74,7 @@ directly or transitively.
 | `com.PRS.model.boards` | `TileType`, `IslandTile`, `PlayerState`, `TileSupply`, `CargoShip` |
 | `com.PRS.model.rolecards` | `Role`, `RoleCard`, `RoleTrack` |
 | `com.PRS.model.game` | `GameConfig`, `SetupTable`, `GameSetup`, `GameState`, `Phase` |
-| `com.PRS.model.actions` | `PlayerAction` (sealed, one record per decision), `ColonistSlot` |
+| `com.PRS.model.actions` | `PlayerAction` (sealed, one record per decision) |
 | `com.PRS.model.engine` | `GameEngine`, `ActionResult`, `RejectionReason`, `RandomPlay`, and one package-private handler per phase |
 | `com.PRS.model.scoring` | `Scorer`, `ScoreBreakdown` |
 
@@ -90,13 +90,19 @@ the captain unloading full ships, and the settler redealing the face-up row.
 exactly the transient state that phase needs (whose turn, who has used a
 Wharf, whether the captain's bonus is spent). Nothing has to be inferred.
 
-**Colonist placement lifts before it places.** The rules let a player
-rearrange colonists already on their board. Modelling that as free
-circle-to-circle moves lets a player shuffle forever, so the mayor phase
-need never end. Instead a player's colonists are all recalled to San Juan
-when their turn begins and placed from scratch: the same end positions are
-reachable, but every action strictly drains San Juan, so the phase always
-terminates.
+**A mayor turn is one action, not a sequence.** `SetColonistPlacement`
+carries a player's whole finished board — island and buildings both,
+index-aligned with their own lists — rather than being played out as
+individual placements. `legalActions` offers exactly one option, the greedy
+fill of San Juan into vacant circles, so an actor that simply takes what
+it's given finishes in a single step; a human client is free to construct
+and submit something better instead. Modelling rearrangement as a sequence
+of place/remove moves was tried and dropped: an actor offered both per
+circle has no way to converge on the fully-staffed board where ending the
+turn is legal, since undoing a move is always as available as making
+progress. Submitting the whole arrangement at once sidesteps that
+entirely — trying placements and undoing them is a client-side concern the
+engine never sees.
 
 **Three known simplifications**, all cases where the rules leave a choice
 that is never rationally made either way:

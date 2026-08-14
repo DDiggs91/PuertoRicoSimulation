@@ -144,7 +144,6 @@ public class RoleSelectionTest {
         .filter(
             a ->
                 a instanceof PlayerAction.PassSettling
-                    || a instanceof PlayerAction.EndColonistPlacement
                     || a instanceof PlayerAction.PassBuilding
                     || a instanceof PlayerAction.PassCraftsmanBonus
                     || a instanceof PlayerAction.PassTrading

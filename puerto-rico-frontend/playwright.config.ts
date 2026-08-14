@@ -18,8 +18,9 @@ export default defineConfig({
   webServer: {
     // A much shorter AI think-time than production's 300ms default: these tests care that a
     // full game plays out and renders correctly, not that it's paced for a human to watch.
-    command:
-      "java -Dapp.ai.think-time-ms=20 -jar ../puerto-rico-web/target/puerto-rico-web-0.0.1.jar",
+    // Globbed rather than pinned: the command runs through a shell, and naming the version here
+    // means a version bump silently breaks this suite, which no other build step would catch.
+    command: "java -Dapp.ai.think-time-ms=20 -jar ../puerto-rico-web/target/puerto-rico-web-*.jar",
     url: "http://localhost:8080/api/ai/engines",
     reuseExistingServer: !process.env.CI,
     timeout: 60_000,

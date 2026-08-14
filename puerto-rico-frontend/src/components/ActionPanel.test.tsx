@@ -111,7 +111,14 @@ describe("ActionPanel", () => {
   const phases: [GameStateView["phase"]["type"], PlayerAction[], string][] = [
     ["ROLE_SELECTION", [selectRole], "action-select-role-BUILDER"],
     ["SETTLER", [{ type: "TAKE_QUARRY", seat: 0 }], "action-take-quarry"],
-    ["MAYOR", [{ type: "END_COLONIST_PLACEMENT", seat: 0 }], "action-end-colonist-placement"],
+    [
+      "MAYOR",
+      // MayorPicker stages locally and constructs its own action rather than handing one of
+      // `options` back — irrelevant here since Finalize on an empty board (the fixture default)
+      // produces exactly this: no island, no buildings, nothing to place.
+      [{ type: "SET_COLONIST_PLACEMENT", seat: 0, islandOccupied: [], buildingColonists: [] }],
+      "action-end-colonist-placement",
+    ],
     ["BUILDER", [{ type: "PASS_BUILDING", seat: 0 }], "action-pass"],
     [
       "CRAFTSMAN_BONUS",

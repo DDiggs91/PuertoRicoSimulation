@@ -125,6 +125,24 @@ test("a human can play through every phase family the game reaches", async ({ pa
         }
       }
     }
+    if (phase === "MAYOR") {
+      // Mayor is staged locally rather than submitted move by move: the circle buttons here don't
+      // carry `data-action-option` at all (see `pickerTypes.ts` and `ActionButton`'s `submits`
+      // prop), so `nextOption` never lands on one — only Finalize does. Placing the colonists this
+      // turn dealt is what makes finalizing legal, so that staging has to happen here explicitly. A
+      // "Staff …" accessible name is a placement in either picker (an empty island tile or a
+      // building circle); it disappears on its own once nothing is left to place.
+      const staff = panel.getByRole("button", { name: /^Staff /, disabled: false });
+      while (
+        await staff
+          .first()
+          .isVisible()
+          .catch(() => false)
+      ) {
+        await staff.first().click({ timeout: 5_000 });
+      }
+      option = panel.getByTestId("action-end-colonist-placement");
+    }
 
     try {
       await option.click({ timeout: 5_000 });

@@ -39,20 +39,35 @@ describe("PlayerBoard", () => {
     expect(screen.getByTestId("player-board-2")).toHaveAttribute("aria-current", "true");
   });
 
-  it("renders island tile and building counts", () => {
+  it("counts island tiles and city spaces against the board's limits", () => {
     const player = makePlayer({
       seat: 0,
       island: [
         { type: "CORN", occupied: true },
         { type: "INDIGO", occupied: false },
       ],
-      buildings: [makeBuilding("SMALL_MARKET", { colonists: 1 })],
+      // One building over two city spaces: it is the spaces that are counted, not the buildings.
+      buildings: [makeBuilding("CITY_HALL", { colonists: 1, victoryPoints: 4 })],
+      citySpacesUsed: 2,
     });
 
     render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
 
-    expect(screen.getByTestId("player-0-island-count")).toHaveTextContent("2");
-    expect(screen.getByTestId("player-0-building-count")).toHaveTextContent("1");
+    expect(screen.getByTestId("player-0-island-count")).toHaveTextContent("2 / 12");
+    expect(screen.getByTestId("player-0-building-count")).toHaveTextContent("2 / 12");
+  });
+
+  it("flags a board that has run out of room", () => {
+    const player = makePlayer({
+      seat: 0,
+      island: Array.from({ length: 12 }, () => ({ type: "CORN" as const, occupied: true })),
+      citySpacesUsed: 5,
+    });
+
+    render(<PlayerBoard player={player} isGovernor={false} isActing={false} />);
+
+    expect(screen.getByTestId("player-0-island-count")).toHaveAttribute("data-full", "true");
+    expect(screen.getByTestId("player-0-building-count")).toHaveAttribute("data-full", "false");
   });
 
   /**

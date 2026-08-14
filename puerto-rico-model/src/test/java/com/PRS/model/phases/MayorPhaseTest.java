@@ -3,36 +3,48 @@ package com.PRS.model.phases;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.PRS.model.TestGames;
-import com.PRS.model.actions.ColonistSlot;
 import com.PRS.model.actions.PlayerAction;
+import com.PRS.model.boards.IslandTile;
 import com.PRS.model.boards.PlayerState;
 import com.PRS.model.boards.TileType;
 import com.PRS.model.buildings.BuildingType;
+import com.PRS.model.buildings.PlacedBuilding;
 import com.PRS.model.engine.GameEngine;
 import com.PRS.model.engine.RejectionReason;
 import com.PRS.model.game.GameState;
 import com.PRS.model.game.Phase;
 import com.PRS.model.rolecards.Role;
+import java.util.ArrayList;
 import java.util.List;
 import org.testng.annotations.Test;
 
-/** Mayor phase: the colonist ship empties out, boards get staffed, then the ship is refilled. */
+/**
+ * Mayor phase: the colonist ship empties out, boards get staffed, then the ship is refilled.
+ *
+ * <p>Staffing is one action per turn — {@link PlayerAction.SetColonistPlacement} carries the whole
+ * finished board — so there is no place/remove/end sequence to drive here; a test builds the
+ * arrangement it wants and applies it directly.
+ */
 public class MayorPhaseTest {
 
   private static GameState mayorPhase(int players) {
     return TestGames.chooseRole(TestGames.newGame(players), Role.MAYOR);
   }
 
-  /** Places every colonist somewhere — players may not stop while San Juan still holds any. */
+  /** The board's current occupancy, as a mutable list ready to be edited into a new arrangement. */
+  private static List<Boolean> island(PlayerState player) {
+    return new ArrayList<>(player.island().stream().map(IslandTile::occupied).toList());
+  }
+
+  /** The board's current colonist counts, as a mutable list ready to be edited. */
+  private static List<Integer> buildings(PlayerState player) {
+    return new ArrayList<>(player.buildings().stream().map(PlacedBuilding::colonists).toList());
+  }
+
+  /** Applies the single legal option — the greedy fill — for every seat's turn, in order. */
   private static GameState finishPlacement(GameState state) {
     while (state.phase() instanceof Phase.MayorPhase) {
-      List<PlayerAction> legal = GameEngine.legalActions(state);
-      PlayerAction action =
-          legal.stream()
-              .filter(a -> a instanceof PlayerAction.EndColonistPlacement)
-              .findFirst()
-              .orElseGet(legal::getFirst);
-      state = TestGames.apply(state, action);
+      state = TestGames.apply(state, GameEngine.legalActions(state).getFirst());
     }
     return state;
   }
@@ -66,108 +78,187 @@ public class MayorPhaseTest {
     assertThat(state.player(3).colonistsInSanJuan()).isEqualTo(1);
   }
 
+  /** A board that was already staffed keeps its staffing; only the new arrivals need placing. */
   @Test
-  public void colonistsMoveFromSanJuanOntoEmptyCircles() {
-    GameState state = mayorPhase(3);
-    assertThat(state.player(0).colonistsInSanJuan()).isEqualTo(2);
-
-    state = TestGames.apply(state, new PlayerAction.PlaceColonist(0, new ColonistSlot.Island(0)));
-
-    assertThat(state.player(0).island().getFirst().occupied()).isTrue();
-    assertThat(state.player(0).colonistsInSanJuan()).isEqualTo(1);
-  }
-
-  /**
-   * Colonists already on the board are lifted back to San Juan when a player's turn starts, so a
-   * rearrangement is just a fresh placement.
-   */
-  @Test
-  public void placedColonistsAreLiftedSoTheyCanBeRearranged() {
+  public void colonistsAlreadyOnTheBoardStayWhereTheyAre() {
     GameState state = TestGames.newGame(3);
     state =
         state.withPlayer(
             TestGames.player(0).staffed(TileType.CORN, 1).tiles(TileType.INDIGO, 1, false).build());
     state = TestGames.chooseRole(state, Role.MAYOR);
 
-    // The corn colonist is back in the pool alongside the two new arrivals.
-    assertThat(state.player(0).colonistsInSanJuan()).isEqualTo(3);
-    assertThat(state.player(0).island()).noneMatch(t -> t.occupied());
+    assertThat(state.player(0).island().getFirst().occupied()).isTrue();
+    assertThat(state.player(0).colonistsInSanJuan()).isEqualTo(2);
+  }
 
-    // It can now go on the indigo tile instead.
-    state = TestGames.apply(state, new PlayerAction.PlaceColonist(0, new ColonistSlot.Island(1)));
+  /**
+   * The one legal option is a greedy fill of San Juan into vacant circles, island before buildings,
+   * in index order — and applying it advances the turn, since it always leaves nothing placeable.
+   */
+  @Test
+  public void theSingleOfferedOptionGreedilyFillsVacantCirclesInOrder() {
+    GameState state = TestGames.newGame(3);
+    state =
+        state.withPlayer(
+            TestGames.player(0)
+                .tiles(TileType.CORN, 3, false)
+                .building(BuildingType.SUGAR_MILL, 0)
+                .build());
+    state = TestGames.chooseRole(state, Role.MAYOR); // 2 colonists arrive in San Juan
+
+    List<PlayerAction> legal = GameEngine.legalActions(state);
+    assertThat(legal).hasSize(1);
+    PlayerAction.SetColonistPlacement fill = (PlayerAction.SetColonistPlacement) legal.getFirst();
+    assertThat(fill.islandOccupied()).containsExactly(true, true, false);
+    assertThat(fill.buildingColonists()).containsExactly(0);
+
+    state = TestGames.apply(state, fill);
+    assertThat(state.player(0).colonistsInSanJuan()).isZero();
+    // Legal by construction, so this seat's turn ends in this one step and the next seat is up.
+    assertThat(state.phase().actorSeat()).isEqualTo(1);
+  }
+
+  /**
+   * One action can both vacate a circle and fill another — a full rearrangement, not a sequence.
+   */
+  @Test
+  public void anArrangementCanMoveAColonistFromOneTileToAnotherInOneStep() {
+    GameState state = TestGames.newGame(3);
+    state =
+        state.withPlayer(
+            TestGames.player(0).staffed(TileType.CORN, 1).tiles(TileType.INDIGO, 1, false).build());
+    state = TestGames.chooseRole(state, Role.MAYOR);
+    // Isolate the mechanic under test: pretend San Juan is already empty, so only the move itself —
+    // not also placing the colonists this turn dealt — is what the assertion below is about.
+    state = state.withPlayer(state.player(0).toBuilder().colonistsInSanJuan(0).build());
+    int totalBefore = state.player(0).totalColonists();
+
+    List<Boolean> island = island(state.player(0));
+    island.set(0, false);
+    island.set(1, true);
+    state =
+        TestGames.apply(
+            state, new PlayerAction.SetColonistPlacement(0, island, buildings(state.player(0))));
+
+    assertThat(state.player(0).island().get(0).occupied()).isFalse();
     assertThat(state.player(0).island().get(1).occupied()).isTrue();
-    assertThat(state.player(0).island().getFirst().occupied()).isFalse();
+    // Total colonists unchanged: one moved, none created or destroyed.
+    assertThat(state.player(0).totalColonists()).isEqualTo(totalBefore);
   }
 
   @Test
-  public void liftingOnlyTouchesThePlayerWhoseTurnItIs() {
+  public void anArrangementOfTheWrongLengthIsRejected() {
+    GameState state = mayorPhase(3);
+    PlayerState player = state.player(0);
+
+    List<Boolean> tooShortIsland = island(player);
+    tooShortIsland.removeFirst();
+    assertThat(
+            TestGames.reject(
+                    state,
+                    new PlayerAction.SetColonistPlacement(0, tooShortIsland, buildings(player)))
+                .reason())
+        .isEqualTo(RejectionReason.INVALID_COLONIST_MOVE);
+
+    List<Integer> tooLongBuildings = buildings(player);
+    tooLongBuildings.add(0);
+    assertThat(
+            TestGames.reject(
+                    state,
+                    new PlayerAction.SetColonistPlacement(0, island(player), tooLongBuildings))
+                .reason())
+        .isEqualTo(RejectionReason.INVALID_COLONIST_MOVE);
+  }
+
+  @Test
+  public void stationingMoreColonistsThanABuildingHasCirclesIsRejected() {
     GameState state = TestGames.newGame(3);
-    state = state.withPlayer(TestGames.player(1).staffed(TileType.CORN, 1).build());
+    state =
+        state.withPlayer(TestGames.player(0).building(BuildingType.SMALL_INDIGO_PLANT, 0).build());
     state = TestGames.chooseRole(state, Role.MAYOR);
 
-    // Seat 0 is placing; seat 1's colonist stays put until their own turn comes round.
-    assertThat(state.phase().actorSeat()).isZero();
-    assertThat(state.player(1).island().getFirst().occupied()).isTrue();
+    assertThat(
+            TestGames.reject(
+                    state,
+                    new PlayerAction.SetColonistPlacement(
+                        0, island(state.player(0)), List.of(2))) // capacity 1
+                .reason())
+        .isEqualTo(RejectionReason.INVALID_COLONIST_MOVE);
   }
 
   @Test
-  public void placementAlwaysTerminates() {
-    GameState state = mayorPhase(3);
-    // Every legal move empties San Juan by one, so taking the first one always runs down.
-    int steps = 0;
-    while (state.phase() instanceof Phase.MayorPhase && steps++ < 200) {
-      state = TestGames.apply(state, GameEngine.legalActions(state).getFirst());
-    }
-    assertThat(state.phase()).isNotInstanceOf(Phase.MayorPhase.class);
+  public void anArrangementNeedingMoreColonistsThanAreAvailableIsRejected() {
+    GameState state = TestGames.newGame(3);
+    state = state.withPlayer(TestGames.player(0).tiles(TileType.CORN, 2, false).build());
+    state = TestGames.chooseRole(state, Role.MAYOR); // 2 in San Juan
+
+    List<Boolean> island = island(state.player(0));
+    island.set(0, true);
+    island.set(1, true);
+    // Both circles filled costs 2 colonists, which is all San Juan holds — legal — but this player
+    // also owns nothing else to place a third colonist onto, so demanding one more must fail rather
+    // than materialize one.
+    GameState overStaffed =
+        state.withPlayer(state.player(0).toBuilder().colonistsInSanJuan(1).build());
+    assertThat(
+            TestGames.reject(
+                    overStaffed, new PlayerAction.SetColonistPlacement(0, island, List.of()))
+                .reason())
+        .isEqualTo(RejectionReason.INVALID_COLONIST_MOVE);
   }
 
   @Test
-  public void aPlayerMayNotStopWhileColonistsSitInSanJuanAndCirclesAreEmpty() {
-    GameState state = mayorPhase(3);
-    assertThat(state.player(0).colonistsInSanJuan()).isEqualTo(2);
-    assertThat(state.player(0).emptyCircles()).isPositive();
+  public void colonistsLeftInSanJuanWhileACircleIsStillEmptyIsRejected() {
+    GameState state = TestGames.newGame(3);
+    state = state.withPlayer(TestGames.player(0).tiles(TileType.CORN, 2, false).build());
+    state = TestGames.chooseRole(state, Role.MAYOR); // 2 in San Juan, 2 empty tiles
 
-    assertThat(GameEngine.legalActions(state))
-        .noneMatch(a -> a instanceof PlayerAction.EndColonistPlacement);
-    assertThat(TestGames.reject(state, new PlayerAction.EndColonistPlacement(0)).reason())
+    // Only one of the two placed: the other could have been, so this must be refused.
+    List<Boolean> island = island(state.player(0));
+    island.set(0, true);
+    assertThat(
+            TestGames.reject(state, new PlayerAction.SetColonistPlacement(0, island, List.of()))
+                .reason())
         .isEqualTo(RejectionReason.COLONISTS_UNPLACED);
   }
 
   @Test
-  public void aPlayerWithNowhereLeftToPutAnyoneMayStop() {
+  public void colonistsMayStayInSanJuanOnceTheBoardHasNoRoomLeft() {
     GameState state = TestGames.newGame(3);
-    // A single tile for three colonists, so two of them have nowhere to go.
-    state = state.withPlayer(TestGames.player(0).staffed(TileType.CORN, 1).build());
+    // One tile for two colonists: the second has nowhere to go.
+    state = state.withPlayer(TestGames.player(0).tiles(TileType.CORN, 1, false).build());
     state = TestGames.chooseRole(state, Role.MAYOR);
-    state = TestGames.apply(state, new PlayerAction.PlaceColonist(0, new ColonistSlot.Island(0)));
 
-    assertThat(state.player(0).emptyCircles()).isZero();
-    assertThat(state.player(0).colonistsInSanJuan()).isEqualTo(2);
-    assertThat(GameEngine.legalActions(state)).contains(new PlayerAction.EndColonistPlacement(0));
+    List<Boolean> island = island(state.player(0));
+    island.set(0, true);
+    state = TestGames.apply(state, new PlayerAction.SetColonistPlacement(0, island, List.of()));
+
+    assertThat(state.player(0).colonistsInSanJuan()).isEqualTo(1);
+    // No room left, so this seat may stop even with a colonist still in San Juan, and the turn
+    // passes on.
+    assertThat(state.phase().actorSeat()).isEqualTo(1);
   }
 
   @Test
-  public void placingIntoAFullBuildingIsRefused() {
+  public void aNegativeBuildingColonistCountIsRejected() {
     GameState state = TestGames.newGame(3);
-    state = state.withPlayer(TestGames.player(0).building(BuildingType.SMALL_INDIGO_PLANT).build());
+    state = state.withPlayer(TestGames.player(0).building(BuildingType.SUGAR_MILL, 1).build());
     state = TestGames.chooseRole(state, Role.MAYOR);
-    // Fill the plant's single circle, then try to squeeze in another.
-    state = TestGames.apply(state, new PlayerAction.PlaceColonist(0, new ColonistSlot.Building(0)));
 
     assertThat(
-            TestGames.reject(state, new PlayerAction.PlaceColonist(0, new ColonistSlot.Building(0)))
+            TestGames.reject(
+                    state,
+                    new PlayerAction.SetColonistPlacement(0, island(state.player(0)), List.of(-1)))
                 .reason())
         .isEqualTo(RejectionReason.INVALID_COLONIST_MOVE);
   }
 
   @Test
-  public void anOutOfRangeSlotIsRejectedRatherThanThrown() {
+  public void submittingAnyOtherActionInTheMayorPhaseIsRejected() {
     GameState state = mayorPhase(3);
 
-    assertThat(
-            TestGames.reject(state, new PlayerAction.PlaceColonist(0, new ColonistSlot.Island(99)))
-                .reason())
-        .isEqualTo(RejectionReason.INVALID_COLONIST_MOVE);
+    assertThat(TestGames.reject(state, new PlayerAction.PassBuilding(0)).reason())
+        .isEqualTo(RejectionReason.WRONG_PHASE);
   }
 
   @Test

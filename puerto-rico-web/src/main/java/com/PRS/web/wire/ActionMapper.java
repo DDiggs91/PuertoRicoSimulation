@@ -1,18 +1,16 @@
 package com.PRS.web.wire;
 
 import com.PRS.contract.model.BuildBuildingAction;
-import com.PRS.contract.model.ColonistSlot;
 import com.PRS.contract.model.DeclineWharfAction;
-import com.PRS.contract.model.EndColonistPlacementAction;
 import com.PRS.contract.model.LoadShipAction;
 import com.PRS.contract.model.LoadWharfAction;
 import com.PRS.contract.model.PassBuildingAction;
 import com.PRS.contract.model.PassCraftsmanBonusAction;
 import com.PRS.contract.model.PassSettlingAction;
 import com.PRS.contract.model.PassTradingAction;
-import com.PRS.contract.model.PlaceColonistAction;
 import com.PRS.contract.model.SelectRoleAction;
 import com.PRS.contract.model.SellGoodAction;
+import com.PRS.contract.model.SetColonistPlacementAction;
 import com.PRS.contract.model.SkipHaciendaAction;
 import com.PRS.contract.model.StoreGoodsAction;
 import com.PRS.contract.model.TakeCraftsmanBonusAction;
@@ -63,15 +61,11 @@ public final class ActionMapper {
         wire.setSeat(a.seat());
         yield wire;
       }
-      case PlayerAction.PlaceColonist a -> {
-        PlaceColonistAction wire = new PlaceColonistAction();
+      case PlayerAction.SetColonistPlacement a -> {
+        SetColonistPlacementAction wire = new SetColonistPlacementAction();
         wire.setSeat(a.seat());
-        wire.setSlot(toWire(a.slot()));
-        yield wire;
-      }
-      case PlayerAction.EndColonistPlacement a -> {
-        EndColonistPlacementAction wire = new EndColonistPlacementAction();
-        wire.setSeat(a.seat());
+        wire.setIslandOccupied(a.islandOccupied());
+        wire.setBuildingColonists(a.buildingColonists());
         yield wire;
       }
       case PlayerAction.BuildBuilding a -> {
@@ -144,9 +138,9 @@ public final class ActionMapper {
       case TakeHaciendaTileAction a -> new PlayerAction.TakeHaciendaTile(a.getSeat());
       case SkipHaciendaAction a -> new PlayerAction.SkipHacienda(a.getSeat());
       case PassSettlingAction a -> new PlayerAction.PassSettling(a.getSeat());
-      case PlaceColonistAction a ->
-          new PlayerAction.PlaceColonist(a.getSeat(), toModel(a.getSlot()));
-      case EndColonistPlacementAction a -> new PlayerAction.EndColonistPlacement(a.getSeat());
+      case SetColonistPlacementAction a ->
+          new PlayerAction.SetColonistPlacement(
+              a.getSeat(), a.getIslandOccupied(), a.getBuildingColonists());
       case BuildBuildingAction a ->
           new PlayerAction.BuildBuilding(a.getSeat(), toModel(a.getBuildingType()));
       case PassBuildingAction a -> new PlayerAction.PassBuilding(a.getSeat());
@@ -169,22 +163,6 @@ public final class ActionMapper {
       default ->
           throw new IllegalArgumentException(
               "Unrecognized PlayerAction wire type: " + action.getClass());
-    };
-  }
-
-  static ColonistSlot toWire(com.PRS.model.actions.ColonistSlot slot) {
-    return switch (slot) {
-      case com.PRS.model.actions.ColonistSlot.Island i ->
-          new ColonistSlot(ColonistSlot.TypeEnum.ISLAND, i.index());
-      case com.PRS.model.actions.ColonistSlot.Building b ->
-          new ColonistSlot(ColonistSlot.TypeEnum.BUILDING, b.index());
-    };
-  }
-
-  static com.PRS.model.actions.ColonistSlot toModel(ColonistSlot slot) {
-    return switch (slot.getType()) {
-      case ISLAND -> new com.PRS.model.actions.ColonistSlot.Island(slot.getIndex());
-      case BUILDING -> new com.PRS.model.actions.ColonistSlot.Building(slot.getIndex());
     };
   }
 

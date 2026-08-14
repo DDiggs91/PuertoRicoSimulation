@@ -34,22 +34,22 @@ directly off disk.
 
 ## Project layout
 
-| Path                       | Holds                                                                                                |
-| -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `src/api/schema.d.ts`      | **Generated**, gitignored — run `npm run generate:api`                                               |
-| `src/api/types.ts`         | Hand-written union aliases for `PlayerAction`/`SessionEvent` (see below) plus re-exports of the rest |
-| `src/api/client.ts`        | The configured `openapi-fetch` client, plus `unwrap`/`ApiError`                                      |
-| `src/api/events.ts`        | `EventSource` subscription → typed `SessionEvent`                                                    |
-| `src/state/gameReducer.ts` | Pure `(state, event) => state` — the UI state, including the pending decision                        |
-| `src/state/seatSession.ts` | The seat token, persisted per game so a reload doesn't strand a player                               |
-| `src/components/`          | `LobbyScreen`, `GameBoard`, `CentralBoard`, `PlayerBoard`, `EventLog`, `ActionPanel`                 |
-| `src/components/pickers/`  | One picker per action family, plus the shared `ActionButton` and `PickerProps`                       |
-| `src/components/art/`      | Inline-SVG pieces (`Pieces`, `RoleIcon`, `BuildingCard`) and the names/colours in `labels.ts`        |
-| `src/styles/`              | `tokens.css` (palette and type) and `app.css` (layout)                                               |
-| `src/App.tsx`              | `?game=` routing, the `/state` + `/decision` bootstrap, SSE lifecycle, move submission               |
-| `src/main.tsx`             | The React entry point — mounts `App` and imports the stylesheet                                      |
-| `src/test/`                | `setup.ts` (jest-dom matchers) and `fixtures.ts` (minimal-but-valid `GameStateView` builders)        |
-| `e2e/`                     | Playwright specs                                                                                     |
+| Path                       | Holds                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `src/api/schema.d.ts`      | **Generated**, gitignored — run `npm run generate:api`                                                  |
+| `src/api/types.ts`         | Hand-written union aliases for `PlayerAction`/`SessionEvent` (see below) plus re-exports of the rest    |
+| `src/api/client.ts`        | The configured `openapi-fetch` client, plus `unwrap`/`ApiError`                                         |
+| `src/api/events.ts`        | `EventSource` subscription → typed `SessionEvent`                                                       |
+| `src/state/gameReducer.ts` | Pure `(state, event) => state` — the UI state, including the pending decision                           |
+| `src/state/seatSession.ts` | The seat token, persisted per game so a reload doesn't strand a player                                  |
+| `src/components/`          | `LobbyScreen`, `GameBoard`, `CentralBoard`, `BuildingDisplay`, `PlayerBoard`, `EventLog`, `ActionPanel` |
+| `src/components/pickers/`  | One picker per action family, plus the shared `ActionButton` and `PickerProps`                          |
+| `src/components/art/`      | Inline-SVG pieces (`Pieces`, `RoleIcon`, `BuildingCard`) and the names/colours in `labels.ts`           |
+| `src/styles/`              | `tokens.css` (palette and type) and `app.css` (layout)                                                  |
+| `src/App.tsx`              | `?game=` routing, the `/state` + `/decision` bootstrap, SSE lifecycle, move submission                  |
+| `src/main.tsx`             | The React entry point — mounts `App` and imports the stylesheet                                         |
+| `src/test/`                | `setup.ts` (jest-dom matchers) and `fixtures.ts` (minimal-but-valid `GameStateView` builders)           |
+| `e2e/`                     | Playwright specs                                                                                        |
 
 ## Design notes
 
@@ -84,14 +84,23 @@ retrofitted.** Every element a test locates has a stable `data-testid`
 (`role="status"` with `aria-live` on the phase indicator, `role="alert"` on
 errors) so the same locators work for a screen reader and for Playwright.
 
-**Every option comes from the server's legal-action list, unchanged.** A
-picker never constructs a `PlayerAction`; it filters `Decision.options` (or
-the identical list on `DecisionRequestedEvent`) by variant and hands the very
-same object back on click. `HumanActor.offer` checks membership by equality,
-so "that action is not currently legal" isn't a race a fast clicker can win —
-it's unreachable from ordinary use. That is also why the pickers are split
-per phase rather than one form: each one only has to present a list it was
-given.
+**Every option comes from the server's legal-action list, unchanged — with
+one sanctioned exception.** A picker never constructs a `PlayerAction`; it
+filters `Decision.options` (or the identical list on
+`DecisionRequestedEvent`) by variant and hands the very same object back on
+click. `HumanActor.offer` checks membership by equality, so "that action is
+not currently legal" isn't a race a fast clicker can win — it's unreachable
+from ordinary use. That is also why the pickers are split per phase rather
+than one form: each one only has to present a list it was given.
+
+`MayorPicker` is the exception: a colonist arrangement is a configuration,
+not a choice from a list, so the mayor phase offers exactly one option (a
+greedy fill) and the picker stages its own arrangement locally instead —
+placing and lifting colonists freely, with nothing sent until Finalize. It
+constructs a `SetColonistPlacementAction` to match what was staged, and
+`HumanActor.offer` admits that one variant by asking the engine whether it
+is legal (the same check `GameSession.submit` would make next) rather than
+by list membership. See `pickerTypes.ts` and `HumanActor`'s doc-comment.
 
 **The pending decision carries the board it was computed against.** A
 legal-action list means nothing without the phase it came from, and the board
@@ -168,5 +177,5 @@ settled (this stack).
 
 Not built yet: the frontend half of timeout handling, which needs a
 server-side per-decision timeout that does not exist either (explicitly
-deferred — see `puerto-rico-session`'s README). Colonist placement is
-click-to-place, not drag-and-drop.
+deferred — see `puerto-rico-session`'s README). Colonists are placed and
+lifted by clicking a card's colonist circles, not by dragging.

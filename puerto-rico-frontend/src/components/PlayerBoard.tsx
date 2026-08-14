@@ -54,13 +54,26 @@ export function PlayerBoard({ player, isGovernor, isActing, isYou = false }: Pla
             <dt>Victory points</dt>
             <dd data-testid={`player-${player.seat}-victory-points`}>{player.victoryPoints}</dd>
           </div>
+          {/* Against their limits, not bare: a full island can take no more plantations, and the
+              12th city space being built on is what ends the game. */}
           <div>
             <dt>Island tiles</dt>
-            <dd data-testid={`player-${player.seat}-island-count`}>{player.island.length}</dd>
+            <dd
+              data-testid={`player-${player.seat}-island-count`}
+              data-full={player.island.length >= player.islandSpaces}
+            >
+              {player.island.length} / {player.islandSpaces}
+            </dd>
           </div>
           <div>
-            <dt>Buildings</dt>
-            <dd data-testid={`player-${player.seat}-building-count`}>{player.buildings.length}</dd>
+            {/* Spaces, not buildings — a large violet building is one building over two spaces. */}
+            <dt>City spaces</dt>
+            <dd
+              data-testid={`player-${player.seat}-building-count`}
+              data-full={player.citySpacesUsed >= player.citySpaces}
+            >
+              {player.citySpacesUsed} / {player.citySpaces}
+            </dd>
           </div>
           <div>
             <dt>Colonists in San Juan</dt>

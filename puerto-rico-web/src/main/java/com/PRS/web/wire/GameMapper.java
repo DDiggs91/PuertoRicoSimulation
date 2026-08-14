@@ -1,6 +1,7 @@
 package com.PRS.web.wire;
 
 import com.PRS.contract.model.BuildOptionView;
+import com.PRS.contract.model.BuildingCatalogEntry;
 import com.PRS.contract.model.CargoShipView;
 import com.PRS.contract.model.GameConfigView;
 import com.PRS.contract.model.GameStateView;
@@ -13,6 +14,7 @@ import com.PRS.contract.model.RoleTrackView;
 import com.PRS.contract.model.TileSupplyView;
 import com.PRS.contract.model.TradingHouseView;
 import com.PRS.model.boards.CargoShip;
+import com.PRS.model.boards.PlayerState;
 import com.PRS.model.engine.GameEngine;
 import com.PRS.model.game.GameConfig;
 import com.PRS.model.game.GameState;
@@ -87,10 +89,28 @@ public final class GameMapper {
   }
 
   private static GameConfigView toWire(GameConfig config) {
-    return new GameConfigView(config.playerNames());
+    return new GameConfigView(config.playerNames(), buildingCatalog());
   }
 
-  private static PlayerStateView toWirePlayer(com.PRS.model.boards.PlayerState player) {
+  /**
+   * The printed building table, every type of it. {@link #buildOptions} quotes what one player
+   * would pay right now and exists only during the builder phase; this is the card face, constant
+   * for the whole game, so a client can draw the building display in any phase.
+   */
+  private static List<BuildingCatalogEntry> buildingCatalog() {
+    return Arrays.stream(com.PRS.model.buildings.BuildingType.values())
+        .map(
+            type ->
+                new BuildingCatalogEntry(
+                    ActionMapper.toWire(type),
+                    type.cost(),
+                    type.victoryPoints(),
+                    type.colonistCapacity(),
+                    type.copies()))
+        .toList();
+  }
+
+  private static PlayerStateView toWirePlayer(PlayerState player) {
     PlayerStateView wire =
         new PlayerStateView(
             player.seat(),
@@ -100,7 +120,10 @@ public final class GameMapper {
             player.island().stream()
                 .map(t -> new IslandTile(toWire(t.type()), t.occupied()))
                 .toList(),
+            PlayerState.ISLAND_SPACES,
             player.buildings().stream().map(GameMapper::toWire).toList(),
+            PlayerState.CITY_SPACES,
+            player.citySpacesUsed(),
             player.colonistsInSanJuan(),
             toGoodsMap(player.goods()));
     return wire;

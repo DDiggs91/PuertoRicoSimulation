@@ -307,6 +307,11 @@ h3 {
   gap: 3px;
 }
 
+/* At the limit: no more plantations will fit, or the city is full and the game is about to end. */
+.player-board__tally dd[data-full="true"] {
+  color: var(--alert);
+}
+
 .player-board__island,
 .player-board__city,
 .player-board__goods {
@@ -388,9 +393,41 @@ h3 {
   color: var(--ink-soft);
 }
 
+.building-card__text {
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--ink-soft);
+}
+
 .building-card__circles {
   display: flex;
   gap: 2px;
+}
+
+/* Mayor phase: the circle itself is the target, so it needs to look pressable without growing the
+   card. Padding stays at zero and the hit area comes from the colonist art. */
+.building-card__circle-button {
+  display: inline-flex;
+  padding: 0;
+  border: 1.5px solid transparent;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.building-card__circle-button:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.building-card__circle-button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.building-card__circle-button:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .role-track {
@@ -407,8 +444,8 @@ h3 {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  width: 92px;
-  padding: 6px 4px;
+  width: 118px;
+  padding: 6px 5px;
   border-radius: var(--radius);
   border: 1.5px solid var(--ink-soft);
   background: #fbf3de;
@@ -431,6 +468,12 @@ h3 {
   font-weight: 700;
 }
 
+.role-card__detail {
+  font-size: 0.62rem;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
 .role-card__taken {
   color: var(--ink-soft);
 }
@@ -445,6 +488,57 @@ h3 {
 
 .central-board__group {
   min-width: 0;
+}
+
+.central-board__group--wide {
+  grid-column: 1 / -1;
+}
+
+/* ---------- building display ---------- */
+
+/* Four columns of cards is wider than any other group, so it takes the whole grid row rather than
+   being squeezed into one auto-fit track. */
+details.central-board__group {
+  grid-column: 1 / -1;
+}
+
+details.central-board__group > summary {
+  cursor: pointer;
+}
+
+.building-display {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.building-display__column {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.building-display__column > li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Sold out is still worth drawing: knowing the last Coffee Roaster is gone changes what a player
+   plans for, and removing the card would make the columns shuffle. */
+.building-display__column > li[data-sold-out="true"] {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+}
+
+.building-display__stock {
+  font-family: var(--font-numeric);
+  font-size: 0.65rem;
+  color: var(--ink-soft);
 }
 
 .cargo-ships,
@@ -606,7 +700,9 @@ h3 {
   text-align: center;
 }
 
-.option:hover:not(:disabled) {
+/* Scoped to buttons: some options are containers for smaller targets (a building card whose
+   colonist circles are the buttons) and must not lift under the pointer as though clickable. */
+button.option:hover:not(:disabled) {
   border-color: var(--gold);
   background: #fff9ea;
   transform: translateY(-1px);
@@ -641,6 +737,12 @@ h3 {
 .option--inert {
   cursor: default;
   opacity: 0.6;
+  box-shadow: none;
+}
+
+/* Not clickable itself, but not dimmed either: it holds the buttons. */
+.option--host {
+  cursor: default;
   box-shadow: none;
 }
 

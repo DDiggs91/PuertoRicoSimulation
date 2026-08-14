@@ -1,5 +1,6 @@
 import type { GameStateView } from "../api/types";
-import { GOOD_NAMES, ROLE_NAMES, TILE_NAMES } from "./art/labels";
+import { BuildingDisplay } from "./BuildingDisplay";
+import { GOOD_NAMES, ROLE_NAMES, ROLE_SUMMARIES, TILE_NAMES } from "./art/labels";
 import { Colonist, Doubloon, GoodBarrel, PlantationTile, ShipArt } from "./art/Pieces";
 import { RoleIcon } from "./art/RoleIcon";
 
@@ -17,7 +18,9 @@ const TRADING_HOUSE_SLOTS = 4;
 export function CentralBoard({ state }: CentralBoardProps) {
   return (
     <section className="panel central-board" data-testid="central-board" aria-label="Central board">
-      <div className="central-board__group">
+      {/* Full width: the cards carry what each role does, so seven of them side by side is both
+          how the real board reads and shorter than stacking them beside the ships. */}
+      <div className="central-board__group central-board__group--wide">
         <h2 className="panel__title">Roles</h2>
         {/* Which roles are left, who took what, and the doubloons piled on the untaken ones — the
             single most important thing to see when deciding what a player will do next. */}
@@ -33,6 +36,9 @@ export function CentralBoard({ state }: CentralBoardProps) {
               >
                 <RoleIcon role={card.role} size={26} />
                 <span className="role-card__name">{ROLE_NAMES[card.role]}</span>
+                {/* The same one-liner the selection picker shows. A role is worth reading here
+                    too: half of choosing well is knowing what the *other* roles would have done. */}
+                <span className="role-card__detail">{ROLE_SUMMARIES[card.role]}</span>
                 {card.doubloons > 0 && (
                   <span className="role-card__coins">
                     <Doubloon count={card.doubloons} size={18} />
@@ -85,6 +91,13 @@ export function CentralBoard({ state }: CentralBoardProps) {
           ))}
         </ul>
       </div>
+
+      {/* Collapsible, and open by default: it is the largest thing on the table and a player who
+          has memorised the display would rather have the vertical space back. */}
+      <details className="central-board__group" data-testid="building-display-panel" open>
+        <summary className="panel__title">Buildings</summary>
+        <BuildingDisplay catalog={state.config.buildingCatalog} supply={state.buildings} />
+      </details>
 
       <dl className="central-board__supplies">
         <div>

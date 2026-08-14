@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { makeState } from "../test/fixtures";
+import { makeCatalogEntry, makeState } from "../test/fixtures";
 import { CentralBoard } from "./CentralBoard";
 
 describe("CentralBoard", () => {
@@ -23,8 +23,25 @@ describe("CentralBoard", () => {
     const captain = screen.getByTestId("role-card-CAPTAIN");
     expect(captain).toHaveAttribute("data-taken", "false");
     expect(captain).toHaveTextContent("Captain");
+    // What the role does, not just its name — the same line the selection picker shows.
+    expect(captain).toHaveTextContent("Everyone ships goods");
     // The coins are a drawn piece, so the count is on its label rather than in the card's text.
     expect(screen.getByLabelText("2 doubloons")).toBeInTheDocument();
+  });
+
+  it("shows the building display, with the copies still for sale", () => {
+    const state = makeState({
+      config: {
+        playerNames: ["Ana", "Bo", "Coco"],
+        buildingCatalog: [makeCatalogEntry("HOSPICE", { cost: 4, victoryPoints: 2, copies: 2 })],
+      },
+      buildings: { HOSPICE: 1 },
+    });
+
+    render(<CentralBoard state={state} />);
+
+    expect(screen.getByTestId("building-display-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("building-supply-HOSPICE")).toHaveTextContent("1 of 2 left");
   });
 
   /**

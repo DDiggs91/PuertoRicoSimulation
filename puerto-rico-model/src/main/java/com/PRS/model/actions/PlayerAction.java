@@ -37,11 +37,16 @@ public sealed interface PlayerAction {
 
   // --- mayor phase ---
 
-  /** Move one colonist out of San Juan onto an empty circle. */
-  record PlaceColonist(int seat, ColonistSlot slot) implements PlayerAction {}
-
-  /** Finish placing; only legal once San Juan is empty or every circle is filled. */
-  record EndColonistPlacement(int seat) implements PlayerAction {}
+  /**
+   * The whole of a player's colonist arrangement for their mayor turn, submitted as one action
+   * rather than played out move by move. Both lists are index-aligned with the player's own board —
+   * {@code islandOccupied.get(i)} answers for {@code island.get(i)}, {@code
+   * buildingColonists.get(i)} for {@code buildings.get(i)} — and whatever colonists the arrangement
+   * does not place stay in San Juan.
+   */
+  record SetColonistPlacement(
+      int seat, List<Boolean> islandOccupied, List<Integer> buildingColonists)
+      implements PlayerAction {}
 
   // --- builder phase ---
 

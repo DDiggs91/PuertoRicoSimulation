@@ -1,10 +1,18 @@
 import type { GameStateView, PlayerAction } from "../../api/types";
 
 /**
- * What every picker gets. `options` is always a slice of the server's own legal-action list — the
- * pickers never construct an action, they present the ones they were handed and pass the very same
- * object back to `onChoose`. That is what makes `HumanActor.offer`'s "that action is not currently
- * legal" rejection unreachable from ordinary use rather than a race a fast clicker can win.
+ * What every picker gets. `options` is always a slice of the server's own legal-action list, and
+ * every picker but one presents exactly those objects back to `onChoose` unchanged — never
+ * constructing an action of its own — which is what makes `HumanActor.offer`'s "that action is not
+ * currently legal" rejection unreachable from ordinary use rather than a race a fast clicker can
+ * win.
+ *
+ * `MayorPicker` is the sanctioned exception: a colonist arrangement is a configuration, not a
+ * choice from a list, and `legalActions` offers exactly one option (a greedy fill) as a result. The
+ * picker stages its own arrangement locally — instant, unlimited undo, nothing sent until Finalize
+ * — and constructs a `SetColonistPlacementAction` to match it. `HumanActor.offer` admits that one
+ * variant by asking the engine whether it is legal rather than by list membership; see its
+ * doc-comment.
  */
 export interface PickerProps {
   options: PlayerAction[];

@@ -445,7 +445,10 @@ components:
         - doubloons
         - victoryPoints
         - island
+        - islandSpaces
         - buildings
+        - citySpaces
+        - citySpacesUsed
         - colonistsInSanJuan
         - goods
       properties:
@@ -461,10 +464,26 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/IslandTile"
+        islandSpaces:
+          type: integer
+          description: >
+            Island spaces on a player board. Carried per player for the same
+            reason PlacedBuilding carries its capacity: it lets a client show
+            how full the island is without restating a rule of its own.
         buildings:
           type: array
           items:
             $ref: "#/components/schemas/PlacedBuilding"
+        citySpaces:
+          type: integer
+          description: City spaces on a player board.
+        citySpacesUsed:
+          type: integer
+          description: >
+            Not the same as buildings.length — a large violet building counts
+            as one building but occupies two city spaces, and it is this number
+            that decides whether another building fits and whether the 12th
+            space has been built on.
         colonistsInSanJuan:
           type: integer
         goods:
@@ -538,22 +557,44 @@ components:
         Omits GameConfig.seed on purpose: it is the seed the initial tile
         shuffle was derived from, so leaking it would leak the same
         information TileSupplyView redacts.
-      required: [playerNames]
+      required: [playerNames, buildingCatalog]
       properties:
         playerNames:
           type: array
           items:
             type: string
+        buildingCatalog:
+          type: array
+          description: >
+            The printed building table, every type of it, so a client can draw
+            the building display in any phase without keeping its own copy of
+            the numbers. Constant for the whole game, which is why it rides on
+            the config rather than the state.
+          items:
+            $ref: "#/components/schemas/BuildingCatalogEntry"
 
-    ColonistSlot:
+    BuildingCatalogEntry:
       type: object
-      required: [type, index]
+      required: [type, cost, victoryPoints, colonistCapacity, copies]
       properties:
         type:
-          type: string
-          enum: [ISLAND, BUILDING]
-        index:
+          $ref: "#/components/schemas/BuildingType"
+        cost:
           type: integer
+          description: >
+            The cost printed on the card, before any discount. Distinct from
+            BuildOptionView.cost, which is what one acting player would pay
+            right now with the builder's privilege and quarry discount applied.
+        victoryPoints:
+          type: integer
+          description: >
+            Also the building's column on the display, which caps how many
+            occupied quarries may discount it.
+        colonistCapacity:
+          type: integer
+        copies:
+          type: integer
+          description: How many copies of this building the game supplies in total.
 
     # The builder's privilege and the quarry discount are engine rules
     # (GameEngine.buildCost). Quoting the result here is what keeps a client
@@ -772,8 +813,7 @@ components:
           TAKE_HACIENDA_TILE: "#/components/schemas/TakeHaciendaTileAction"
           SKIP_HACIENDA: "#/components/schemas/SkipHaciendaAction"
           PASS_SETTLING: "#/components/schemas/PassSettlingAction"
-          PLACE_COLONIST: "#/components/schemas/PlaceColonistAction"
-          END_COLONIST_PLACEMENT: "#/components/schemas/EndColonistPlacementAction"
+          SET_COLONIST_PLACEMENT: "#/components/schemas/SetColonistPlacementAction"
           BUILD_BUILDING: "#/components/schemas/BuildBuildingAction"
           PASS_BUILDING: "#/components/schemas/PassBuildingAction"
           TAKE_CRAFTSMAN_BONUS: "#/components/schemas/TakeCraftsmanBonusAction"
@@ -825,18 +865,25 @@ components:
       allOf:
         - $ref: "#/components/schemas/PlayerAction"
 
-    PlaceColonistAction:
+    SetColonistPlacementAction:
+      description: >
+        The whole of a mayor turn's colonist arrangement, submitted as one action. Both arrays are
+        index-aligned with the acting player's own board — islandOccupied[i] answers for
+        PlayerStateView.island[i], buildingColonists[i] for .buildings[i] — and whatever colonists
+        the arrangement does not place stay in San Juan.
       allOf:
         - $ref: "#/components/schemas/PlayerAction"
         - type: object
-          required: [slot]
+          required: [islandOccupied, buildingColonists]
           properties:
-            slot:
-              $ref: "#/components/schemas/ColonistSlot"
-
-    EndColonistPlacementAction:
-      allOf:
-        - $ref: "#/components/schemas/PlayerAction"
+            islandOccupied:
+              type: array
+              items:
+                type: boolean
+            buildingColonists:
+              type: array
+              items:
+                type: integer
 
     BuildBuildingAction:
       allOf:

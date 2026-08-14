@@ -124,31 +124,107 @@ describe("MayorPicker", () => {
     buildings: [makeBuilding("HOSPICE", { colonists: 0, capacity: 1, victoryPoints: 2 })],
   });
 
-  it("makes clickable exactly the slots the server offered, and draws the rest inert", async () => {
+  /** `options` is unused by this picker — it constructs its own action, see `pickerTypes.ts`. */
+  function renderMayor(overridePlayer = player) {
+    const p = props([], {
+      state: makeState({ players: [overridePlayer], phase: { type: "MAYOR", actorSeat: 0 } }),
+    });
+    render(<MayorPicker {...p} />);
+    return p;
+  }
+
+  it("stages a placement locally without submitting anything", async () => {
     const user = userEvent.setup();
-    const island: PlayerAction = {
-      type: "PLACE_COLONIST",
+    const p = renderMayor();
+    expect(screen.getByTestId("colonists-in-hand")).toHaveTextContent("2 in San Juan");
+
+    await user.click(screen.getByTestId("stage-colonist-ISLAND-0"));
+
+    expect(p.onChoose).not.toHaveBeenCalled();
+    expect(screen.getByTestId("colonists-in-hand")).toHaveTextContent("1 in San Juan");
+  });
+
+  it("lets a just-staged colonist be taken back, any number of times, before finalizing", async () => {
+    const user = userEvent.setup();
+    const p = renderMayor();
+
+    await user.click(screen.getByTestId("stage-colonist-ISLAND-0")); // place
+    await user.click(screen.getByTestId("stage-colonist-ISLAND-0")); // take back
+    await user.click(screen.getByTestId("stage-colonist-ISLAND-0")); // place again
+
+    expect(p.onChoose).not.toHaveBeenCalled();
+    expect(screen.getByTestId("colonists-in-hand")).toHaveTextContent("1 in San Juan");
+  });
+
+  it("labels a filled circle as a way to take the colonist back", () => {
+    renderMayor();
+
+    expect(screen.getByTestId("stage-colonist-ISLAND-1")).toHaveAccessibleName(
+      "Take the colonist back from the Indigo plantation",
+    );
+  });
+
+  it("a circle with nothing to place and nothing to remove is drawn inert", () => {
+    const empty = makePlayer({
       seat: 0,
-      slot: { type: "ISLAND", index: 0 },
-    };
-    const building: PlayerAction = {
-      type: "PLACE_COLONIST",
-      seat: 0,
-      slot: { type: "BUILDING", index: 0 },
-    };
-    const p = props([island, building, { type: "END_COLONIST_PLACEMENT", seat: 0 }], {
-      state: makeState({ players: [player], phase: { type: "MAYOR", actorSeat: 0 } }),
+      colonistsInSanJuan: 0,
+      island: [{ type: "CORN", occupied: false }],
     });
 
-    render(<MayorPicker {...p} />);
+    renderMayor(empty);
 
-    expect(screen.getByTestId("colonists-in-hand")).toHaveTextContent("2 in San Juan");
-    expect(screen.getByTestId("action-place-colonist-ISLAND-0")).toBeInTheDocument();
-    // Index 1 is already staffed, so it was not offered — drawn, but not a button.
-    expect(screen.queryByTestId("action-place-colonist-ISLAND-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("stage-colonist-ISLAND-0")).not.toBeInTheDocument();
+  });
 
-    await user.click(screen.getByTestId("action-place-colonist-BUILDING-0"));
-    expect(p.onChoose).toHaveBeenCalledWith(building);
+  it("stages a building circle's place and its own remove on separate circles", async () => {
+    const user = userEvent.setup();
+    // A three-circle building with one colonist on it: one circle can be filled, one emptied.
+    const staffed = makePlayer({
+      seat: 0,
+      colonistsInSanJuan: 1,
+      buildings: [makeBuilding("SUGAR_MILL", { colonists: 1, capacity: 3, victoryPoints: 2 })],
+    });
+    renderMayor(staffed);
+
+    await user.click(screen.getByTestId("stage-place-colonist-BUILDING-0"));
+    expect(screen.getByTestId("colonists-in-hand")).toHaveTextContent("0 in San Juan");
+
+    await user.click(screen.getByTestId("stage-remove-colonist-BUILDING-0"));
+    expect(screen.getByTestId("colonists-in-hand")).toHaveTextContent("1 in San Juan");
+  });
+
+  it("finalize is available immediately — nothing here waits on the server to allow it", () => {
+    renderMayor();
+
+    expect(screen.getByTestId("action-end-colonist-placement")).toBeEnabled();
+  });
+
+  it("finalize submits the whole staged arrangement as one action", async () => {
+    const user = userEvent.setup();
+    const p = renderMayor();
+
+    await user.click(screen.getByTestId("stage-colonist-ISLAND-0"));
+    await user.click(screen.getByTestId("action-end-colonist-placement"));
+
+    expect(p.onChoose).toHaveBeenCalledTimes(1);
+    expect(p.onChoose).toHaveBeenCalledWith({
+      type: "SET_COLONIST_PLACEMENT",
+      seat: 0,
+      islandOccupied: [true, true],
+      buildingColonists: [0],
+    });
+  });
+
+  it("stage-only circle buttons carry no data-action-option marker", async () => {
+    renderMayor();
+
+    // Distinguishes a local edit from a real submission: the Playwright driver that plays a game
+    // by clicking `[data-action-option]` must not treat staging a colonist as a move.
+    expect(screen.getByTestId("stage-colonist-ISLAND-0")).not.toHaveAttribute("data-action-option");
+    expect(screen.getByTestId("action-end-colonist-placement")).toHaveAttribute(
+      "data-action-option",
+      "true",
+    );
   });
 });
 

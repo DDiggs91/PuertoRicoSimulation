@@ -1,4 +1,5 @@
 import type {
+  BuildingCatalogEntry,
   BuildingType,
   GameStateView,
   GameView,
@@ -17,7 +18,10 @@ export function makePlayer(overrides: Partial<PlayerStateView> = {}): PlayerStat
     doubloons: 0,
     victoryPoints: 0,
     island: [],
+    islandSpaces: 12,
     buildings: [],
+    citySpaces: 12,
+    citySpacesUsed: 0,
     colonistsInSanJuan: 0,
     goods: {},
     ...overrides,
@@ -35,9 +39,20 @@ export function makeBuilding(
   return { type, colonists: 0, capacity: 1, victoryPoints: 1, ...overrides };
 }
 
+/**
+ * A catalog entry with the card's printed numbers. Empty by default in `makeState` — a test that
+ * renders the building display names the handful of buildings it cares about.
+ */
+export function makeCatalogEntry(
+  type: BuildingType,
+  overrides: Partial<BuildingCatalogEntry> = {},
+): BuildingCatalogEntry {
+  return { type, cost: 1, victoryPoints: 1, colonistCapacity: 1, copies: 2, ...overrides };
+}
+
 export function makeState(overrides: Partial<GameStateView> = {}): GameStateView {
   return {
-    config: { playerNames: ["Ana", "Bo", "Coco"] },
+    config: { playerNames: ["Ana", "Bo", "Coco"], buildingCatalog: [] },
     players: [
       makePlayer({ seat: 0, name: "Ana" }),
       makePlayer({ seat: 1, name: "Bo" }),

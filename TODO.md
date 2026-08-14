@@ -97,9 +97,10 @@ The board renders every shared component and every player's island and city,
 a seated human can play all eight action families, and the whole thing is
 styled. What is left is refinement rather than absence:
 
-- **Drag-and-drop colonist placement.** Placement is click-to-place today,
-  which the rules need nothing more than; dragging a colonist from San Juan
-  onto a circle is the physical gesture the board suggests.
+- **Drag-and-drop colonist placement.** Placing and lifting are clicks on a
+  card's colonist circles today, which the rules need nothing more than;
+  dragging a colonist from San Juan onto a circle is the physical gesture the
+  board suggests.
 - **Reading the board mid-decision.** The action panel is sticky at the
   bottom and can cover a good deal of a five-player table on a short viewport.
 - **A move history worth reading.** The event log names players and describes

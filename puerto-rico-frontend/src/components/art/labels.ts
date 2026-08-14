@@ -82,8 +82,7 @@ export const ACTION_NAMES: Record<string, string> = {
   TAKE_HACIENDA_TILE: "used the Hacienda",
   SKIP_HACIENDA: "skipped the Hacienda",
   PASS_SETTLING: "took no plantation",
-  PLACE_COLONIST: "placed a colonist",
-  END_COLONIST_PLACEMENT: "finished placing colonists",
+  SET_COLONIST_PLACEMENT: "placed their colonists",
   BUILD_BUILDING: "built a building",
   PASS_BUILDING: "built nothing",
   TAKE_CRAFTSMAN_BONUS: "took an extra barrel",
@@ -120,6 +119,39 @@ export const BUILDING_NAMES: Record<BuildingType, string> = {
   FORTRESS: "Fortress",
   CUSTOMS_HOUSE: "Customs House",
   CITY_HALL: "City Hall",
+};
+
+/**
+ * What each building does, one line — the text printed on the card itself, minus the numbers the
+ * card already shows. Production buildings say what they turn a plantation into; violet ones say
+ * their function and the phase it fires in, since that is what a player is scanning the display
+ * for. Large violet bonuses are scored at game end and only while occupied, which the wording says
+ * out loud because it is the edge people forget.
+ */
+export const BUILDING_SUMMARIES: Record<BuildingType, string> = {
+  SMALL_INDIGO_PLANT: "Turns occupied indigo plantations into indigo.",
+  SMALL_SUGAR_MILL: "Turns occupied sugar plantations into sugar.",
+  INDIGO_PLANT: "Turns occupied indigo plantations into indigo.",
+  SUGAR_MILL: "Turns occupied sugar plantations into sugar.",
+  TOBACCO_STORAGE: "Turns occupied tobacco fields into tobacco.",
+  COFFEE_ROASTER: "Turns occupied coffee plantations into coffee.",
+  SMALL_MARKET: "Trader: one extra doubloon on every good you sell.",
+  HACIENDA: "Settler: also take the top face-down plantation, and place it.",
+  CONSTRUCTION_HUT: "Settler: take a quarry instead of a plantation.",
+  SMALL_WAREHOUSE: "Captain: keep every barrel of one kind you choose.",
+  HOSPICE: "Settler: a colonist arrives on each plantation you settle.",
+  OFFICE: "Trader: sell a kind the trading house already holds.",
+  LARGE_MARKET: "Trader: two extra doubloons on every good you sell.",
+  LARGE_WAREHOUSE: "Captain: keep every barrel of two kinds you choose.",
+  FACTORY: "Craftsman: doubloons for the variety of goods you produced.",
+  UNIVERSITY: "Builder: a colonist arrives on each building you build.",
+  HARBOR: "Captain: one extra victory point every time you load.",
+  WHARF: "Captain: once a phase, ship every barrel of one kind at will.",
+  GUILD_HALL: "1 VP per small production building, 2 per large. Occupied only.",
+  RESIDENCE: "4 VP, rising to 7 as your island fills past 9 tiles. Occupied only.",
+  FORTRESS: "1 VP per three colonists anywhere on your board. Occupied only.",
+  CUSTOMS_HOUSE: "1 VP per four victory point chips you shipped for. Occupied only.",
+  CITY_HALL: "1 VP per violet building in your city, itself included. Occupied only.",
 };
 
 /**

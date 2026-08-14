@@ -8,6 +8,12 @@ export interface ActionButtonProps {
   /** Screen-reader label, when the visible content is art or a bare number. */
   label?: string;
   variant?: "tile" | "card" | "plain" | "pass";
+  /**
+   * False for a click that only edits local state rather than submitting a move — `MayorPicker`'s
+   * circle toggles, which stage an arrangement rather than send one. Default true: everywhere else,
+   * a click is a submission.
+   */
+  submits?: boolean;
   children: ReactNode;
 }
 
@@ -15,10 +21,12 @@ export interface ActionButtonProps {
  * Every clickable option in the action panel, so the affordances stay identical across eight very
  * different pickers.
  *
- * Carries `data-action-option` on top of its specific `data-testid`: an element can only have one
- * test id, but a test (and the Playwright spec that plays a whole game by clicking whatever is
- * offered) needs a way to say "any legal option, whatever this phase calls it". The specific id is
- * for asserting a particular choice; the marker attribute is for finding one at all.
+ * Carries `data-action-option` on top of its specific `data-testid`, when `submits` is true: an
+ * element can only have one test id, but a test (and the Playwright spec that plays a whole game by
+ * clicking whatever is offered) needs a way to say "any legal option, whatever this phase calls
+ * it". The specific id is for asserting a particular choice; the marker attribute is for finding one
+ * at all — and for finding *only* clicks that actually submit something, which is why a
+ * stage-locally click must not carry it.
  */
 export function ActionButton({
   testId,
@@ -26,6 +34,7 @@ export function ActionButton({
   disabled,
   label,
   variant = "plain",
+  submits = true,
   children,
 }: ActionButtonProps) {
   return (
@@ -33,7 +42,7 @@ export function ActionButton({
       type="button"
       className={`option option--${variant}`}
       data-testid={testId}
-      data-action-option="true"
+      data-action-option={submits ? "true" : undefined}
       aria-label={label}
       disabled={disabled}
       onClick={onClick}

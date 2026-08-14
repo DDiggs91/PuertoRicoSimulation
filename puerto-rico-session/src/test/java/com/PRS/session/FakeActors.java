@@ -102,8 +102,9 @@ final class FakeActors {
       case PlayerAction.TakeHaciendaTile a -> new PlayerAction.TakeHaciendaTile(wrongSeat);
       case PlayerAction.SkipHacienda a -> new PlayerAction.SkipHacienda(wrongSeat);
       case PlayerAction.PassSettling a -> new PlayerAction.PassSettling(wrongSeat);
-      case PlayerAction.PlaceColonist a -> new PlayerAction.PlaceColonist(wrongSeat, a.slot());
-      case PlayerAction.EndColonistPlacement a -> new PlayerAction.EndColonistPlacement(wrongSeat);
+      case PlayerAction.SetColonistPlacement a ->
+          new PlayerAction.SetColonistPlacement(
+              wrongSeat, a.islandOccupied(), a.buildingColonists());
       case PlayerAction.BuildBuilding a -> new PlayerAction.BuildBuilding(wrongSeat, a.type());
       case PlayerAction.PassBuilding a -> new PlayerAction.PassBuilding(wrongSeat);
       case PlayerAction.TakeCraftsmanBonus a ->

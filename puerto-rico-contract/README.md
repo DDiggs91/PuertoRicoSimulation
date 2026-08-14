@@ -57,11 +57,10 @@ top-level `oneOf` list. That choice was deliberate and specifically
 Java-friendly: openapi-generator turns it into a concrete base class per
 hierarchy with `@JsonTypeInfo`/`@JsonSubTypes` already wired, and each
 variant as a subclass — full polymorphic (de)serialization with zero manual
-Jackson configuration. `Phase` and `ColonistSlot`, by contrast, are
-flattened into one schema with optional fields: the client only ever
-*renders* a `Phase` (never constructs one), and `ColonistSlot`'s two
-variants share identical shape, so a discriminated hierarchy would add
-machinery without adding safety for either.
+Jackson configuration. `Phase`, by contrast, is flattened into one schema
+with optional fields: the client only ever *renders* a `Phase`, never
+constructs one, so a discriminated hierarchy would add machinery without
+adding safety.
 
 **`GameConfigView` omits `seed`, `TileSupplyView` omits the draw/discard
 piles.** Both are the base game's only hidden information — the whole

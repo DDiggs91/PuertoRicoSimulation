@@ -1,57 +1,130 @@
-import { BUILDING_NAMES, TILE_NAMES } from "../art/labels";
+import { useState } from "react";
+import type { PlayerAction, PlayerStateView } from "../../api/types";
+import { TILE_NAMES } from "../art/labels";
 import { BuildingCard } from "../art/BuildingCard";
 import { Colonist, PlantationTile } from "../art/Pieces";
 import { ActionButton } from "./ActionButton";
-import { optionsOfType } from "./pickerTypes";
 import type { PickerProps } from "./pickerTypes";
 
-/**
- * Colonist placement, as the board itself rather than a list: the player's own island tiles and
- * city buildings, each clickable exactly when it has room for another colonist.
- *
- * A `PlaceColonist` option carries a `ColonistSlot` whose `index` addresses `island[i]` or
- * `buildings[i]` directly, so the option list maps straight onto what's drawn — no lookup table,
- * and no way to click a space the server didn't offer.
- */
-export function MayorPicker({ options, state, seat, submitting, onChoose }: PickerProps) {
-  const placements = optionsOfType(options, "PLACE_COLONIST");
-  const end = optionsOfType(options, "END_COLONIST_PLACEMENT");
-  const player = state.players.find((p) => p.seat === seat);
+interface Arrangement {
+  /** Index-aligned with `player.island`. */
+  island: boolean[];
+  /** Index-aligned with `player.buildings`, each a colonist count rather than a flag. */
+  buildings: number[];
+}
 
-  const islandSlots = new Map(
-    placements.filter((a) => a.slot.type === "ISLAND").map((a) => [a.slot.index, a]),
-  );
-  const buildingSlots = new Map(
-    placements.filter((a) => a.slot.type === "BUILDING").map((a) => [a.slot.index, a]),
-  );
+function arrangementOf(player: PlayerStateView | undefined): Arrangement {
+  return {
+    island: (player?.island ?? []).map((tile) => tile.occupied),
+    buildings: (player?.buildings ?? []).map((building) => building.colonists),
+  };
+}
+
+function sanJuanRemaining(player: PlayerStateView | undefined, arrangement: Arrangement): number {
+  const before =
+    (player?.island ?? []).filter((t) => t.occupied).length +
+    (player?.buildings ?? []).reduce((sum, b) => sum + b.colonists, 0);
+  const after =
+    arrangement.island.filter(Boolean).length +
+    arrangement.buildings.reduce((sum, n) => sum + n, 0);
+  return (player?.colonistsInSanJuan ?? 0) - (after - before);
+}
+
+/**
+ * Colonist placement, staged entirely in the browser. Clicking a circle toggles it locally —
+ * placing or lifting a colonist is instant, free, and reversible any number of times — and nothing
+ * reaches the server until Finalize sends the whole finished arrangement as one
+ * `SetColonistPlacementAction`. See `pickerTypes.ts` for why this is the one picker allowed to
+ * construct an action rather than hand back an object the server offered verbatim.
+ *
+ * The board this stages from is `player.island`/`player.buildings` as they stood when this seat's
+ * turn began — untouched by anything staged here, since nothing is sent until Finalize. A fresh
+ * `MayorPicker` mounts once per turn (the action panel unmounts between decisions), so seeding state
+ * from props on mount is exactly "start from what's actually on the board."
+ */
+export function MayorPicker({ state, seat, submitting, onChoose }: PickerProps) {
+  const player = state.players.find((p) => p.seat === seat);
+  const [arrangement, setArrangement] = useState<Arrangement>(() => arrangementOf(player));
+  const remaining = sanJuanRemaining(player, arrangement);
+
+  const toggleIsland = (index: number) => {
+    setArrangement((current) => {
+      const occupied = current.island[index];
+      if (!occupied && remaining <= 0) {
+        return current;
+      }
+      const island = current.island.slice();
+      island[index] = !occupied;
+      return { ...current, island };
+    });
+  };
+
+  const placeBuilding = (index: number, capacity: number) => {
+    setArrangement((current) => {
+      if (current.buildings[index] >= capacity || remaining <= 0) {
+        return current;
+      }
+      const buildings = current.buildings.slice();
+      buildings[index] += 1;
+      return { ...current, buildings };
+    });
+  };
+
+  const removeBuilding = (index: number) => {
+    setArrangement((current) => {
+      if (current.buildings[index] <= 0) {
+        return current;
+      }
+      const buildings = current.buildings.slice();
+      buildings[index] -= 1;
+      return { ...current, buildings };
+    });
+  };
+
+  const finalize = () => {
+    const action: PlayerAction = {
+      type: "SET_COLONIST_PLACEMENT",
+      seat,
+      islandOccupied: arrangement.island,
+      buildingColonists: arrangement.buildings,
+    };
+    onChoose(action);
+  };
 
   return (
     <div className="picker picker--mayor">
       <p className="picker__hint" data-testid="colonists-in-hand">
         <Colonist size={18} />
-        {player?.colonistsInSanJuan ?? 0} in San Juan — place them where they will work.
+        {remaining} in San Juan — click an empty circle to staff it, a filled one to take that
+        colonist back. Nothing is sent until you finalize.
       </p>
 
       <ul className="picker__row" aria-label="Your island">
         {(player?.island ?? []).map((tile, index) => {
-          const action = islandSlots.get(index);
+          const occupied = arrangement.island[index];
+          const clickable = occupied || remaining > 0;
           return (
             <li key={index}>
-              {action ? (
+              {clickable ? (
                 <ActionButton
-                  testId={`action-place-colonist-ISLAND-${index}`}
+                  testId={`stage-colonist-ISLAND-${index}`}
                   variant="tile"
+                  submits={false}
                   disabled={submitting}
-                  label={`Staff the ${TILE_NAMES[tile.type]}`}
-                  onClick={() => onChoose(action)}
+                  label={
+                    occupied
+                      ? `Take the colonist back from the ${TILE_NAMES[tile.type]}`
+                      : `Staff the ${TILE_NAMES[tile.type]}`
+                  }
+                  onClick={() => toggleIsland(index)}
                 >
-                  <PlantationTile type={tile.type} occupied={tile.occupied} />
+                  <PlantationTile type={tile.type} occupied={occupied} />
                 </ActionButton>
               ) : (
-                // Drawn but not offered: a full tile is still part of the island the player is
-                // reading, and hiding it would make the board jump around as spaces fill.
+                // Empty and nothing left to put there: still part of the island being read, so it
+                // stays drawn rather than disappearing and reflowing the row.
                 <span className="option option--tile option--inert">
-                  <PlantationTile type={tile.type} occupied={tile.occupied} />
+                  <PlantationTile type={tile.type} occupied={occupied} />
                 </span>
               )}
             </li>
@@ -61,51 +134,41 @@ export function MayorPicker({ options, state, seat, submitting, onChoose }: Pick
 
       <ul className="picker__row" aria-label="Your city">
         {(player?.buildings ?? []).map((building, index) => {
-          const action = buildingSlots.get(index);
+          const colonists = arrangement.buildings[index];
+          const canPlace = colonists < building.capacity && remaining > 0;
+          const canRemove = colonists > 0;
           return (
             <li key={index}>
-              {action ? (
-                <ActionButton
-                  testId={`action-place-colonist-BUILDING-${index}`}
-                  variant="card"
+              {/* The card is a frame, not a button — its circles are the targets, so it is only
+                  dimmed when neither direction is available. */}
+              <span
+                className={`option option--card ${canPlace || canRemove ? "option--host" : "option--inert"}`}
+              >
+                <BuildingCard
+                  type={building.type}
+                  victoryPoints={building.victoryPoints}
+                  capacity={building.capacity}
+                  colonists={colonists}
+                  slotId={`BUILDING-${index}`}
                   disabled={submitting}
-                  label={`Staff the ${BUILDING_NAMES[building.type]}`}
-                  onClick={() => onChoose(action)}
-                >
-                  <BuildingCard
-                    type={building.type}
-                    victoryPoints={building.victoryPoints}
-                    capacity={building.capacity}
-                    colonists={building.colonists}
-                  />
-                </ActionButton>
-              ) : (
-                <span className="option option--card option--inert">
-                  <BuildingCard
-                    type={building.type}
-                    victoryPoints={building.victoryPoints}
-                    capacity={building.capacity}
-                    colonists={building.colonists}
-                  />
-                </span>
-              )}
+                  onPlace={canPlace ? () => placeBuilding(index, building.capacity) : undefined}
+                  onRemove={canRemove ? () => removeBuilding(index) : undefined}
+                />
+              </span>
             </li>
           );
         })}
       </ul>
 
       <div className="picker__row">
-        {end.map((action) => (
-          <ActionButton
-            key="end"
-            testId="action-end-colonist-placement"
-            variant="pass"
-            disabled={submitting}
-            onClick={() => onChoose(action)}
-          >
-            <span className="option__title">Done placing colonists</span>
-          </ActionButton>
-        ))}
+        <ActionButton
+          testId="action-end-colonist-placement"
+          variant="pass"
+          disabled={submitting}
+          onClick={finalize}
+        >
+          <span className="option__title">Finalize colonist placements</span>
+        </ActionButton>
       </div>
     </div>
   );

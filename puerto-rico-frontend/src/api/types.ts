@@ -15,8 +15,7 @@ export type PlayerAction =
   | components["schemas"]["TakeHaciendaTileAction"]
   | components["schemas"]["SkipHaciendaAction"]
   | components["schemas"]["PassSettlingAction"]
-  | components["schemas"]["PlaceColonistAction"]
-  | components["schemas"]["EndColonistPlacementAction"]
+  | components["schemas"]["SetColonistPlacementAction"]
   | components["schemas"]["BuildBuildingAction"]
   | components["schemas"]["PassBuildingAction"]
   | components["schemas"]["TakeCraftsmanBonusAction"]
@@ -69,13 +68,13 @@ export type Good = components["schemas"]["Good"];
 export type TileType = components["schemas"]["TileType"];
 export type Role = components["schemas"]["Role"];
 export type BuildingType = components["schemas"]["BuildingType"];
-export type ColonistSlot = components["schemas"]["ColonistSlot"];
 export type BuildOptionView = components["schemas"]["BuildOptionView"];
 export type GoodPriceView = components["schemas"]["GoodPriceView"];
 export type PlacedBuilding = components["schemas"]["PlacedBuilding"];
 export type IslandTile = components["schemas"]["IslandTile"];
 export type GoodsMap = components["schemas"]["GoodsMap"];
 export type BuildingSupplyMap = components["schemas"]["BuildingSupplyMap"];
+export type BuildingCatalogEntry = components["schemas"]["BuildingCatalogEntry"];
 export type CargoShipView = components["schemas"]["CargoShipView"];
 export type TradingHouseView = components["schemas"]["TradingHouseView"];
 export type RoleTrackView = components["schemas"]["RoleTrackView"];
